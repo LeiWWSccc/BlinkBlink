@@ -17,6 +17,7 @@ public class DFGEntryKey {
     private SootField field;
 
     private boolean isOriginal = true;
+    private boolean isLeft = true;
 
     private final int hashCode;
 
@@ -31,6 +32,7 @@ public class DFGEntryKey {
         result = prime * result + ((base == null) ? 0 : base.hashCode());
         result = prime * result + ((field == null) ? 0 : field.hashCode());
         result = prime * result + ((isOriginal == false) ? 1231:1237);
+        result = prime * result + ((isLeft == false) ? 1231:1237);
         this.hashCode = result;
     }
 
@@ -46,6 +48,24 @@ public class DFGEntryKey {
         result = prime * result + ((base == null) ? 0 : base.hashCode());
         result = prime * result + ((field == null) ? 0 : field.hashCode());
         result = prime * result + ((isOriginal == false) ? 1231:1237);
+        result = prime * result + ((isLeft == false) ? 1231:1237);
+        this.hashCode = result;
+    }
+
+    public DFGEntryKey(Unit u, Value base, SootField field, boolean isOriginal, boolean isLeft) {
+        this.stmt = u;
+        this.base = base;
+        this.field = field;
+        this.isOriginal = isOriginal;
+        this.isLeft = isLeft;
+
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((stmt == null) ? 0 : stmt.hashCode());
+        result = prime * result + ((base == null) ? 0 : base.hashCode());
+        result = prime * result + ((field == null) ? 0 : field.hashCode());
+        result = prime * result + ((isOriginal == false) ? 1231:1237);
+        result = prime * result + ((isLeft == false) ? 1231:1237);
         this.hashCode = result;
     }
 
@@ -79,6 +99,8 @@ public class DFGEntryKey {
         } else if (!field.equals(other.field))
             return false;
         if(isOriginal != other.isOriginal)
+            return false;
+        if(isLeft != other.isLeft)
             return false;
 
         return true;

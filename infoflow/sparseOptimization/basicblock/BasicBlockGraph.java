@@ -349,6 +349,14 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
             if(!(u instanceof Stmt))
                 continue;
             final Stmt stmt = (Stmt) u;
+
+            int a = 0;
+            if(stmt.toString().equals("$i1 = staticinvoke <com.appbrain.c.e: int b(int,com.appbrain.c.c)>(36, $r1)"))
+                a ++;
+
+
+
+
             final  BasicBlock bb = unitToBBMap.get(u);
             final int innerBBIdx = unitToInnerBBIndexMap.get(u);
 
@@ -382,6 +390,8 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
 
             }else if(stmt instanceof InvokeStmt) {
 
+            }else if (stmt instanceof IfStmt) {
+                continue;
             }
 
             if(ie != null) {

@@ -10,11 +10,6 @@
  ******************************************************************************/
 package soot.jimple.infoflow.solver.fastSolver;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
-
 import heros.FlowFunction;
 import heros.solver.Pair;
 import heros.solver.PathEdge;
@@ -31,6 +26,11 @@ import soot.jimple.infoflow.solver.functions.SolverCallToReturnFlowFunction;
 import soot.jimple.infoflow.solver.functions.SolverNormalFlowFunction;
 import soot.jimple.infoflow.solver.functions.SolverReturnFlowFunction;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 /**
  * We are subclassing the JimpleIFDSSolver because we need the same executor for both the forward and the backward analysis
  * Also we need to be able to insert edges containing new taint information
@@ -55,8 +55,13 @@ public class InfoflowSolver extends IFDSSolver<Unit, Abstraction, BiDiInterproce
 	}
 
 	@Override
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+		return false;
+	}
+
+	@Override
 	public boolean processEdge(PathEdge<Unit, Abstraction> edge){
-		propagate(edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
+		propagate(null, edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
 		return true;
 	}
 	
@@ -91,7 +96,7 @@ public class InfoflowSolver extends IFDSSolver<Unit, Abstraction, BiDiInterproce
 							d5p = d5p.clone();
 							d5p.setPredecessor(d2);
 						}
-						propagate(d1, retSiteN, d5p, callSite, false, true);
+						propagate(retSiteN, d1, retSiteN, d5p, callSite, false, true);
 					}
 				}
 			}

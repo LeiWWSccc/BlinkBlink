@@ -50,6 +50,7 @@ import soot.jimple.infoflow.solver.cfg.IInfoflowCFG;
 import soot.jimple.infoflow.solver.cfg.InfoflowCFG;
 import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
 import soot.jimple.infoflow.solver.executors.SetPoolExecutor;
+import soot.jimple.infoflow.solver.fastSolver.IFDSSolver;
 import soot.jimple.infoflow.solver.memory.DefaultMemoryManagerFactory;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
 import soot.jimple.infoflow.solver.memory.IMemoryManagerFactory;
@@ -57,6 +58,8 @@ import soot.jimple.infoflow.source.IOneSourceAtATimeManager;
 import soot.jimple.infoflow.source.ISourceSinkManager;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.DataFlowGraphQuery;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.InnerBBFastBuildDFGSolver;
+import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
+import soot.jimple.infoflow.sparseOptimization.problem.BackwardsSparseInfoflowProblem;
 import soot.jimple.infoflow.sparseOptimization.problem.SparseInfoflowProblem;
 import soot.jimple.infoflow.util.SootMethodRepresentationParser;
 import soot.jimple.infoflow.util.SystemClassHandler;
@@ -284,13 +287,13 @@ public class Infoflow extends AbstractInfoflow {
 				logger.info("Starting Data Flow Graph building!");
 				InnerBBFastBuildDFGSolver dfgSolver = new InnerBBFastBuildDFGSolver(iCfg);
 				long beforeDfgBuild = System.nanoTime();
-				long beforeMem = getUsedMemory();
 				dfgSolver.solve();
 				logger.info("Data Flow Graph building took " + (System.nanoTime() - beforeDfgBuild) / 1E9
 						+ " seconds");
-				logger.info("Data Flow Graph building memory consumption " + (getUsedMemory() - beforeMem) / 1E6
+				logger.info("Data Flow Graph building memory consumption " + (getUsedMemory()) / 1E6
 						+ " MB");
-				DataFlowGraphQuery.initialize(iCfg, dfgSolver.getDfg(), dfgSolver.getBackwardDfg());
+				//DataFlowGraphQuery.initialize(iCfg, dfgSolver.getDfg(), dfgSolver.getBackwardDfg(), dfgSolver.getUnitOrderComputingMap());
+				DataFlowGraphQuery.newInitialize(iCfg, dfgSolver.getNewDfg(), dfgSolver.getNewBackwardDfg(), dfgSolver.getUnitOrderComputingMap());
 
 //				Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>>
 //						dfg = dfgSolver.getDfg();
@@ -370,6 +373,7 @@ public class Infoflow extends AbstractInfoflow {
 				if (aliasingStrategy.getSolver() != null) {
 					aliasingStrategy.getSolver().getTabulationProblem().setActivationUnitsToCallSites(forwardProblem);
 					if(config.isSparseOptEnabled()) {
+						manager.setActivationUnitsToUnits(forwardProblem.getActivationUnitsToUnits());
 						aliasingStrategy.getSolver().getTabulationProblem().getManager().setActivationUnitsToUnits(forwardProblem.getActivationUnitsToUnits());
 					}
 				}
@@ -444,7 +448,21 @@ public class Infoflow extends AbstractInfoflow {
 					if (config.getIncrementalResultReporting())
 						initializeIncrementalResultReporting(propagationResults, builder);
 
+					long beforeFsolver = System.nanoTime();
 					forwardSolver.solve();
+					logger.info("Taint OPfSolver took " + (System.nanoTime() - beforeFsolver) / 1E9
+							+ " seconds");
+					logger.info("Hash DataFlowGraphQuery took: " + DataFlowGraphQuery.count / 1E9);
+					logger.info("Set usedef took: " + DataFlowNode.count / 1E9);
+					logger.info("Forward Normal took: " + SparseInfoflowProblem.countNormal1 / 1E9);
+					logger.info("Forward Normal2 took: " + SparseInfoflowProblem.countNormal2 / 1E9);
+					logger.info("Forward Normal3 took: " + SparseInfoflowProblem.countNormal3 / 1E9);
+					logger.info("Backward Normal1 took: " + BackwardsSparseInfoflowProblem.countNormal1 / 1E9);
+					logger.info("Backward Normal2 took: " + BackwardsSparseInfoflowProblem.countNormal2 / 1E9);
+					logger.info("IFDS Normal took: " + IFDSSolver.countNormal / 1E9);
+					logger.info("IFDS Call took: " + IFDSSolver.countCall / 1E9);
+					logger.info("IFDS Exit took: " + IFDSSolver.countExit / 1E9);
+
 					maxMemoryConsumption = Math.max(maxMemoryConsumption, getUsedMemory());
 
 					// Not really nice, but sometimes Heros returns before all
@@ -738,14 +756,18 @@ public class Infoflow extends AbstractInfoflow {
 			backwardsManager = new InfoflowManager(config, null, new BackwardsInfoflowCFG(iCfg), sourcesSinks,
 					taintWrapper, hierarchy, manager.getAccessPathFactory());
 			backProblem = new BackwardsInfoflowProblem(backwardsManager);
-
 			// We need to create the right data flow solver
 			switch (config.getDataFlowSolver()) {
 			case Heros:
 				backSolver = new soot.jimple.infoflow.solver.heros.InfoflowSolver(backProblem, executor);
 				break;
 			case ContextFlowSensitive:
-				backSolver = new soot.jimple.infoflow.solver.fastSolver.InfoflowSolver(backProblem, executor);
+				if(config.isSparseOptEnabled())
+					backSolver = new soot.jimple.infoflow.sparseOptimization.solver.BackwardsInfoflowSparseSolver(
+							new BackwardsSparseInfoflowProblem(backwardsManager), executor);
+				else
+					backSolver = new soot.jimple.infoflow.solver.fastSolver.InfoflowSolver(backProblem, executor);
+
 				break;
 			case FlowInsensitive:
 				backSolver = new soot.jimple.infoflow.solver.fastSolver.flowInsensitive.InfoflowSolver(backProblem,

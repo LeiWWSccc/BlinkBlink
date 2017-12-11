@@ -4,7 +4,9 @@ import heros.solver.Pair;
 import soot.SootField;
 import soot.SootMethod;
 import soot.Value;
+import soot.jimple.ReturnStmt;
 import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlock;
+import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlockGraph;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DFGEntryKey;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNodeFactory;
@@ -45,6 +47,14 @@ public class BaseInfoStmtSet {
 
         //System.out.println("CC1" + m.toString() + base.toString());
         for(BaseInfoStmt varInfo : varInfoSets) {
+
+            int a = 0;
+            if(varInfo.stmt.toString().equals("$i1 = staticinvoke <com.appbrain.c.e: int b(int,com.appbrain.c.c)>(36, $r1)"))
+                a ++;
+
+
+            if(varInfo.base != null && !varInfo.base.equals(base))
+                throw  new RuntimeException("base should equal or return stmt!");
             //System.out.println(varInfo.toString());
             BasicBlock bb = varInfo.bb;
             Set<BaseInfoStmt> set = null;
@@ -92,12 +102,12 @@ public class BaseInfoStmtSet {
                 tmpbackward.put(pathb , backDataFlowNode);
             }
             if(baseInfo.rightFields != null && baseInfo.rightFields.length == 1) {
-//                DataFlowNode fordataFlowNode = DataFlowNodeFactory.v().createDataFlowNode
-//                        (baseInfo.stmt, baseInfo.base, baseInfo.rightFields[0], true);
-//                Pair<BaseInfoStmt, DataFlowNode> forpath = new Pair<BaseInfoStmt, DataFlowNode>(baseInfo, fordataFlowNode);
-//                seed.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.rightFields[0]), forpath);
-//
-//                tmpforward.put(forpath, fordataFlowNode);
+                DataFlowNode fordataFlowNode = DataFlowNodeFactory.v().createDataFlowNode
+                        (baseInfo.stmt, baseInfo.base, baseInfo.rightFields[0], false);
+                Pair<BaseInfoStmt, DataFlowNode> forpath = new Pair<BaseInfoStmt, DataFlowNode>(baseInfo, fordataFlowNode);
+                seed.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.rightFields[0], true, false), forpath);
+
+                tmpforward.put(forpath, fordataFlowNode);
 
                 DataFlowNode dataFlowNode = DataFlowNodeFactory.v().createDataFlowNode
                         (baseInfo.stmt, baseInfo.base, baseInfo.rightFields[0], true);
@@ -148,7 +158,30 @@ public class BaseInfoStmtSet {
         but we dont have the info in return stmt,
         so we just add all the parms ,this , static variables to form  a <parm , returnStmt> Path
          */
-        for(BaseInfoStmt returnStmt : returnStmtList) {
+        for(BaseInfoStmt exitStmt : returnStmtList) {
+
+            if(exitStmt.stmt instanceof ReturnStmt) {
+                ReturnStmt returnStmt = (ReturnStmt)exitStmt.stmt;
+                Value retLocal = returnStmt.getOp();
+                Pair<Value, SootField> pair = BasicBlockGraph.getBaseAndField(retLocal);
+                Value retBase = pair.getO1();
+                SootField retfield = pair.getO2();
+
+                // return null; !!!
+                if(retBase != null && retBase.equals(this.base)) {
+                    if(retfield == null)
+                        retfield = DataFlowNode.baseField;
+
+                    DataFlowNode dataFlowNodeback = DataFlowNodeFactory.v().createDataFlowNode
+                            (exitStmt.stmt, retBase, retfield, true);
+                    Pair<BaseInfoStmt, DataFlowNode> pathback = new Pair<BaseInfoStmt, DataFlowNode>(exitStmt, dataFlowNodeback);
+
+                    seedbackward.put(new DFGEntryKey(exitStmt.stmt, retBase, retfield), pathback);
+
+                    tmpbackward.put(pathback, dataFlowNodeback);
+                }
+
+            }
 
             for(Value base: paramAndThis) {
 
@@ -162,15 +195,24 @@ public class BaseInfoStmtSet {
 //                    field = DataFlowNode.baseField;
 
                 DataFlowNode dataFlowNodeback = DataFlowNodeFactory.v().createDataFlowNode
-                        (returnStmt.stmt, base, field, true);
-                Pair<BaseInfoStmt, DataFlowNode> pathback = new Pair<BaseInfoStmt, DataFlowNode>(returnStmt, dataFlowNodeback);
+                        (exitStmt.stmt, base, field, true);
+                Pair<BaseInfoStmt, DataFlowNode> pathback = new Pair<BaseInfoStmt, DataFlowNode>(exitStmt, dataFlowNodeback);
 
-                seedbackward.put(new DFGEntryKey(returnStmt.stmt, base, field), pathback);
+                seedbackward.put(new DFGEntryKey(exitStmt.stmt, base, field), pathback);
 
                 tmpbackward.put(pathback, dataFlowNodeback);
 
             }
-
+        }
+        for(Pair<BaseInfoStmt, DataFlowNode> pair : tmpforward.keySet()) {
+            Value a = pair.getO1().base;
+            if(a != null && !a.equals(base))
+                throw  new RuntimeException("base should equal or return stmt!");
+        }
+        for(Pair<BaseInfoStmt, DataFlowNode> pair : tmpbackward.keySet()) {
+            Value a = pair.getO1().base;
+            if(a != null && !a.equals(base))
+                throw  new RuntimeException("base should equal or return stmt!");
         }
 
        // System.out.println("CC4");
@@ -222,7 +264,7 @@ public class BaseInfoStmtSet {
             BaseInfoStmt curBaseInfo = curPath.getO1();
             DataFlowNode curNode = curPath.getO2();
 
-            if(curNode.getValue() != this.base)
+            if((curBaseInfo.base != null && !curBaseInfo.base.equals(this.base)) || !curNode.getValue().equals(this.base))
                 continue;
 
             Set<BaseInfoStmt> nexts = getNexts(curBaseInfo, isForward);
@@ -232,7 +274,9 @@ public class BaseInfoStmtSet {
             for(BaseInfoStmt next : nexts) {
 
                 //因为return stmt的next 会有很多不同的base， 所以会产生bug
-                if(next.base !=null && !next.base.equals(base))
+                if(next.base != null && !next.base.equals(base))
+                    continue;
+                if(next.base != null && next.base != base)
                     continue;
 
                 AbstractFunction forwardFunction = FunctionFactory.getFunction(isForward, visited, paramAndThis, seed);

@@ -95,8 +95,10 @@ public class InfoflowConfiguration {
 	}
 	
 	private int accessPathLength = 5;
-	private boolean useRecursiveAccessPaths = true;
-	private boolean useThisChainReduction = true;
+	private boolean useRecursiveAccessPaths = false;
+	//private boolean useRecursiveAccessPaths = true;
+	private boolean useThisChainReduction = false;
+	//private boolean useThisChainReduction = true;
 	private static boolean pathAgnosticResults = true;
 	private static boolean oneResultPerAccessPath = false;
 	private static boolean mergeNeighbors = false;
@@ -104,12 +106,14 @@ public class InfoflowConfiguration {
 	
 	private int stopAfterFirstKFlows = 0;
 	private boolean enableImplicitFlows = false;
-	private boolean enableStaticFields = true;
+	private boolean enableStaticFields = false;
+	//private boolean enableStaticFields = true;
 	private boolean enableExceptions = false;
 	//private boolean enableExceptions = true;
 	private boolean enableArraySizeTainting = true;
 	private boolean flowSensitiveAliasing = true;
-	private boolean enableTypeChecking = true;
+	private boolean enableTypeChecking = false;
+	//private boolean enableTypeChecking = true;
 	private boolean ignoreFlowsInSystemPackages = false;
 	private boolean excludeSootLibraryClasses = false;
 	//private int maxThreadNum = -1;

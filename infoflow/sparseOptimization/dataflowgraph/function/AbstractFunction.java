@@ -58,6 +58,9 @@ public abstract class AbstractFunction {
     protected void addResult(Set<Pair<BaseInfoStmt, DataFlowNode>>  res, Pair<BaseInfoStmt, DataFlowNode> path) {
         if(this.jumpFunc.containsKey(path))
             return;
+        if(path.getO1().base != null && !path.getO1().base.equals(path.getO2().getValue()))
+            throw new RuntimeException("base not ok");
+
         jumpFunc.put(path, path.getO2());
         res.add(path);
     }

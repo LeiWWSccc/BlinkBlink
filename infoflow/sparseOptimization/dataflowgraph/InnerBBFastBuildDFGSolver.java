@@ -26,7 +26,9 @@ public class InnerBBFastBuildDFGSolver {
     protected InfoflowConfiguration config = new InfoflowConfiguration();
 
     private Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg = new HashMap<>();
+    private Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> newDfg = new HashMap<>();
 
+    private Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> newBackwardDfg = new HashMap<>();
     private Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg = new HashMap<>();
 
     private Map<SootMethod,  Map<Value, Map<DFGEntryKey, Set<DataFlowNode>>>> returnInfo = new HashMap<>();
@@ -41,6 +43,14 @@ public class InnerBBFastBuildDFGSolver {
         this.iCfg = iCfg;
     }
 
+    public Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> getNewDfg() {
+        return newDfg;
+    }
+
+    public Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> getNewBackwardDfg() {
+        return newBackwardDfg;
+    }
+
     public Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> getDfg() {
         return dfg;
     }
@@ -53,7 +63,15 @@ public class InnerBBFastBuildDFGSolver {
         return returnInfo;
     }
 
-    final public static String[] debugFunc = {"main","funcA"};
+    //final public static String[] debugFunc = {"main","funcA","funcB","funcC"};
+    //final public static String[] debugFunc = {"<com.clixap.sdk.RequestService: void onHandleIntent(android.content.Intent)>"};
+    //final public static String[] debugFunc = {"<com.appbrain.a.t: void run()>"};
+    final public static String[] debugFunc = {"<com.appbrain.a.w: void a()>"};
+    //final public static String[] debugFunc = {"<com.appbrain.a.v: void a(com.appbrain.a.v)>"};
+    //final public static String[] debugFunc = {"<com.wEditingHDVideo.ads.AdsLoader: void init(java.lang.String,com.wEditingHDVideo.MainNavigationActivity)>"};
+    //final public static String[] debugFunc = {"<com.wEditingHDVideo.ads.AdsLoader$5: void run()>"};
+    //final public static String[] debugFunc = {"<com.wEditingHDVideo.Server.AppsGeyserServerClient: java.lang.String GetBannerUrl()>"};
+    //final public static String[] debugFunc = {"<com.wEditingHDVideo.ads.AdsLoader: void reload()>"};
 
     public void solve() {
         for (SootMethod sm : getMethodsForSeeds(iCfg))
@@ -90,6 +108,7 @@ public class InnerBBFastBuildDFGSolver {
 
         if (m.hasActiveBody()) {
             // Check whether this is a system class we need to ignore
+            final String className = m.getDeclaringClass().getName();
 //            if (config.getIgnoreFlowsInSystemPackages()
 //                    && SystemClassHandler.isClassInSystemPackage(className))
 //                return ;
@@ -123,10 +142,12 @@ public class InnerBBFastBuildDFGSolver {
                 Pair<Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> resPair = baseInfoStmtSet.solve();
                 baseToDfg.put(base, resPair.getO1());
                 backwardBaseToDfg.put(base, resPair.getO2());
+                newDfg.putAll(resPair.getO1());
+                newBackwardDfg.putAll(resPair.getO2());
                 returnInfoMap.put(base, baseInfoStmtSet.getReturnInfo());
 
             }
-            printer(m, baseToDfg, backwardBaseToDfg);
+            //printer(m, baseToDfg, backwardBaseToDfg);
 
             dfg.put(m, baseToDfg);
             backwardDfg.put(m, backwardBaseToDfg);

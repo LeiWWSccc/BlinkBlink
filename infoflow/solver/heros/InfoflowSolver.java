@@ -10,25 +10,15 @@
  ******************************************************************************/
 package soot.jimple.infoflow.solver.heros;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
 import com.google.common.collect.Table;
-
 import heros.EdgeFunction;
 import heros.FlowFunction;
 import heros.edgefunc.EdgeIdentity;
-import heros.solver.CountingThreadPoolExecutor;
-import heros.solver.IFDSSolver;
-import heros.solver.Pair;
-import heros.solver.PathEdge;
-import heros.solver.PathTrackingIFDSSolver;
+import heros.solver.*;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.memory.IMemoryBoundedSolver;
-import soot.jimple.infoflow.memory.IMemoryBoundedSolver.IMemoryBoundedSolverStatusNotification;
 import soot.jimple.infoflow.problems.AbstractInfoflowProblem;
 import soot.jimple.infoflow.solver.IFollowReturnsPastSeedsHandler;
 import soot.jimple.infoflow.solver.IInfoflowSolver;
@@ -39,6 +29,10 @@ import soot.jimple.infoflow.solver.functions.SolverNormalFlowFunction;
 import soot.jimple.infoflow.solver.functions.SolverReturnFlowFunction;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 /**
  * We are subclassing the JimpleIFDSSolver because we need the same executor for both the forward and the backward analysis
  * Also we need to be able to insert edges containing new taint information
@@ -62,6 +56,10 @@ public class InfoflowSolver extends PathTrackingIFDSSolver<Unit, Abstraction, So
 	@Override
 	protected CountingThreadPoolExecutor getExecutor() {
 		return executor;
+	}
+
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+		return false;
 	}
 
 	public boolean processEdge(PathEdge<Unit, Abstraction> edge){

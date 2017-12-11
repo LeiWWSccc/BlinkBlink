@@ -10,11 +10,6 @@
  ******************************************************************************/
 package soot.jimple.infoflow.solver.fastSolver.flowInsensitive;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
-
 import heros.FlowFunction;
 import heros.solver.Pair;
 import heros.solver.PathEdge;
@@ -31,6 +26,11 @@ import soot.jimple.infoflow.solver.functions.SolverCallToReturnFlowFunction;
 import soot.jimple.infoflow.solver.functions.SolverNormalFlowFunction;
 import soot.jimple.infoflow.solver.functions.SolverReturnFlowFunction;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 /**
  * We are subclassing the JimpleIFDSSolver because we need the same executor for both the forward and the backward analysis
  * Also we need to be able to insert edges containing new taint information
@@ -52,6 +52,11 @@ public class InfoflowSolver extends FlowInsensitiveSolver<Unit, Abstraction, BiD
 	@Override
 	protected InterruptableExecutor getExecutor() {
 		return executor;
+	}
+
+	@Override
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+		return false;
 	}
 
 	@Override

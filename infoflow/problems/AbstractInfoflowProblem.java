@@ -28,6 +28,7 @@ import soot.jimple.infoflow.nativ.INativeCallHandler;
 import soot.jimple.infoflow.solver.IInfoflowSolver;
 import soot.jimple.infoflow.solver.cfg.IInfoflowCFG;
 import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlockGraph;
+import soot.jimple.infoflow.sparseOptimization.dataflowgraph.DataFlowGraphQuery;
 import soot.jimple.infoflow.taintWrappers.ITaintPropagationWrapper;
 import soot.jimple.infoflow.util.SystemClassHandler;
 import soot.jimple.toolkits.ide.DefaultJimpleIFDSTabulationProblem;
@@ -134,15 +135,15 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 		return false;
 	}
 
-	public boolean isActivatingTaint(SootMethod m, Unit activationUnit, Unit curStmt,  Abstraction source) {
+	public boolean isActivatingTaint(SootMethod m, Unit activationUnit, Unit defStmt , Unit curStmt, Abstraction abstraction) {
 		Pair<SootMethod, Unit> key = new Pair<SootMethod, Unit>(m, activationUnit);
 		if(!activationUnitsToUnits.containsKey(key))
 			return false;
-		BasicBlockGraph orderComputing = manager.getMethodToBasicBlockGraphMap().get(m);
+		BasicBlockGraph orderComputing = DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap().get(m);
 
 		Set<Unit> res = activationUnitsToUnits.get(new Pair<SootMethod, Unit>(m, activationUnit));
 		for(Unit u : res) {
-			if(orderComputing.computeOrder(source.getCurrentStmt(), u) &&
+			if(orderComputing.computeOrder(defStmt, u) &&
 					orderComputing.computeOrder(u, curStmt))
 				return true;
 
@@ -168,6 +169,11 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 		if (activationUnit == null)
 			return false;
 
+		Pair<SootMethod, Unit> key = new Pair<>(manager.getICFG().getMethodOf(callSite), activationUnit);
+		Set<Unit> activeUnits = activationUnitsToUnits.putIfAbsentElseGet(key, new ConcurrentHashSet<Unit>());
+		if(activeUnits.contains(callSite))
+			return false;
+
 		Set<Unit> callSites = activationUnitsToCallSites.putIfAbsentElseGet
 				(activationUnit, new ConcurrentHashSet<Unit>());
 		if (callSites.contains(callSite))
@@ -185,7 +191,7 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 					return false;
 			}
 
-		return callSites.add(callSite);
+		return callSites.add(callSite) && activeUnits.add(callSite);
 	}
 	
 

@@ -57,16 +57,22 @@ public class InfoflowSparseSolver extends IFDSSolver<Unit, Abstraction, BiDiInte
 	}
 
 	@Override
-	public boolean processEdge(PathEdge<Unit, Abstraction> edge){
-		propagate(edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+		propagate(defStmt, edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
 		return true;
 	}
 
-	protected PathEdge<Unit, Abstraction> activateEdge(PathEdge<Unit, Abstraction> oldEdge) {
+	@Override
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge){
+		//propagate(defStmt, edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
+		return false;
+	}
+
+	protected PathEdge<Unit, Abstraction> activateEdge(PathEdge<Unit, Abstraction> oldEdge, Unit defStmt) {
 		Abstraction source = oldEdge.factAtTarget();
 		Unit src = oldEdge.getTarget();
 		if (!source.isAbstractionActive() && problem.isActivatingTaint(problem.getManager().getICFG().getMethodOf(src),
-				source.getActivationUnit(), src, source)) {
+				source.getActivationUnit(), defStmt, src, source)) {
 			Abstraction newSource = source.getActiveCopy();
 			PathEdge<Unit, Abstraction> activeEdge = new PathEdge<>(oldEdge.factAtSource(), oldEdge.getTarget(), newSource);
 			return activeEdge;
@@ -108,7 +114,7 @@ public class InfoflowSparseSolver extends IFDSSolver<Unit, Abstraction, BiDiInte
 							d5p = d5p.clone();
 							d5p.setPredecessor(d2);
 						}
-						propagate(d1, retSiteN, d5p, callSite, false, true);
+						propagate(retSiteN, d1, retSiteN, d5p, callSite, false, true);
 					}
 				}
 			}

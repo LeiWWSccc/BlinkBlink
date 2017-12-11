@@ -3,6 +3,7 @@ package soot.jimple.infoflow.sparseOptimization.dataflowgraph.function;
 import heros.solver.Pair;
 import soot.SootField;
 import soot.Value;
+import soot.jimple.IdentityStmt;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.BaseInfoStmt;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DFGEntryKey;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
@@ -75,6 +76,9 @@ public class BackwardFunction extends AbstractFunction {
                     //(1.1.2) a.f1 = xxx; source : a.f1  , gen f1 -> <a.f1>
                     // a.f1 = b;
                     // a.f1 = pwd;
+                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, false);
+                    newNode = getNewDataFlowNode(target, newNode);
+                    source.setSuccs(sourceField, newNode);
                    // source.setKillField(targetLeftField);
 
                 }  else {
@@ -149,7 +153,8 @@ public class BackwardFunction extends AbstractFunction {
                     newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, false);
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(sourceField, newNode);
-                    isKillSource = true;
+                    if(!(target.stmt instanceof IdentityStmt))
+                        isKillSource = true;
 
                 } else {
                     //(1) a.f1 = xxx ; source : a  , gen new a.f1
@@ -185,6 +190,9 @@ public class BackwardFunction extends AbstractFunction {
                     // xxx = a.f1  or xxx = a.f2; source : a ,  just kill field f1.
 
 
+                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
+                    newNode = getNewDataFlowNode(target, newNode);
+                    source.setSuccs(right, newNode);
                     // b = a.f1
                     // a.f1 = pwd;   strong update !!!
 

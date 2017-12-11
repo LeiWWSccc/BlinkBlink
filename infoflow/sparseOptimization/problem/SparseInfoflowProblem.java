@@ -62,6 +62,12 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 		this.propagationRules = new PropagationRuleManager(manager, aliasing,
 				createZeroValue(), results);
 	}
+
+	public static long countCall = 0;
+	public static long countNormal1 = 0;
+	public static long countNormal2 = 0;
+	public static long countNormal3 = 0;
+	public static long countExit = 0;
 	
 	@Override
 	public FlowFunctions<Unit, Abstraction, SootMethod> createFlowFunctionsFactory() {
@@ -200,7 +206,8 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 				
 				// i = lengthof a. This is handled by a rule.
 				if (rightValue instanceof LengthExpr) {
-					return Collections.singleton(newSource);
+					return Collections.emptySet();
+					//return Collections.singleton(newSource);
 				}
 				
 				// If we have an implicit flow, but the assigned
@@ -220,7 +227,8 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 					// anyway
 					if ((d1 == null || d1.getAccessPath().isEmpty())
 							&& !(leftValue instanceof FieldRef))
-						return Collections.singleton(newSource);
+						return Collections.emptySet();
+						//return Collections.singleton(newSource);
 													
 					if (newSource.getAccessPath().isEmpty())
 						addLeftValue = true;
@@ -323,14 +331,15 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 						&& (assignStmt.getLeftOp().getType() instanceof PrimType
 								|| (TypeUtils.isStringType(assignStmt.getLeftOp().getType())
 										&& !newSource.getAccessPath().getCanHaveImmutableAliases())))
-					return Collections.singleton(newSource);
+					//return Collections.singleton(newSource);
+					return Collections.emptySet();
 				
 				Set<Abstraction> res = new HashSet<Abstraction>();
 				Abstraction targetAB = mappedAP.equals(newSource.getAccessPath())
 						? newSource : newSource.deriveNewAbstraction(mappedAP, null);							
 				addTaintViaStmt(d1, assignStmt, targetAB, res, cutFirstField,
 						interproceduralCFG().getMethodOf(assignStmt), targetType);
-				res.add(newSource);
+				//res.add(newSource);
 				return res;
 			}
 
@@ -346,11 +355,11 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 					public Set<Abstraction> computeTargetsInternal(Abstraction d1, Abstraction source) {
 						// Check whether we must activate a taint
 						final Abstraction newSource;
-						if (!source.isAbstractionActive() && src == source.getActivationUnit())
-							newSource = source.getActiveCopy();
-						else
+//						if (!source.isAbstractionActive() && src == source.getActivationUnit())
+//							newSource = source.getActiveCopy();
+//						else
 							newSource = source;
-						
+						long beforeFsolver3 = System.nanoTime();
 						// Apply the propagation rules
 						ByReferenceBoolean killSource = new ByReferenceBoolean();
 						ByReferenceBoolean killAll = new ByReferenceBoolean();
@@ -358,23 +367,31 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 								newSource, stmt, (Stmt) dest, killSource, killAll);
 						if (killAll.value)
 							return Collections.<Abstraction>emptySet();
-						
+						countNormal3 += (System.nanoTime() - beforeFsolver3);
+
 						// Propagate over an assignment
 						if (src instanceof AssignStmt) {
 							final AssignStmt assignStmt = (AssignStmt) src;
 							final Value right = assignStmt.getRightOp();
 							final Value[] rightVals = BaseSelector.selectBaseList(right, true);
-							
+							long beforeFsolver = System.nanoTime();
+
+							if(assignStmt.toString().equals("$i0 = $i0 * $i1"))
+								beforeFsolver++;
+
 							// Create the new taints that may be created by this assignment
 							Set<Abstraction> resAssign = createNewTaintOnAssignment(assignStmt,
 									rightVals, d1, newSource);
+							countNormal1 += (System.nanoTime() - beforeFsolver);
+
+							long beforeFsolver2 = System.nanoTime();
 							//我们不需要对source进行传播，因为source会直接传播到他的使用位置
-							if (resAssign != null && !resAssign.isEmpty()) {
-								if(resAssign.size() == 1 && resAssign.contains(newSource))
-									resAssign = null;
-								else
-									resAssign.remove(newSource);
-							}
+//							if (resAssign != null && !resAssign.isEmpty()) {
+//								if(resAssign.size() == 1 && resAssign.contains(newSource))
+//									resAssign = null;
+//								else if(resAssign.contains(newSource))
+//									resAssign.remove(newSource);
+//							}
 
 
 							final Value left = assignStmt.getLeftOp();
@@ -409,8 +426,11 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 										res = Collections.singleton(sourceDfn.deriveNewAbsbyAbs(newSource));
 								}
 							}
+							countNormal2 += (System.nanoTime() - beforeFsolver2);
+
 						}
-						
+
+
 						// Return what we have so far
 						return res == null || res.isEmpty() ? Collections.<Abstraction>emptySet() : res;
 					}
@@ -474,8 +494,8 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 									FlowFunctionType.CallFlowFunction);
 						
 						// We might need to activate the abstraction
-						if (!source.isAbstractionActive() && source.getActivationUnit() == src)
-							source = source.getActiveCopy();
+//						if (!source.isAbstractionActive() && source.getActivationUnit() == src)
+//							source = source.getActiveCopy();
 						
 						ByReferenceBoolean killAll = new ByReferenceBoolean();
 						Set<Abstraction> res = propagationRules.applyCallFlowFunction(d1,
@@ -595,11 +615,11 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 						
 						// Activate taint if necessary
 						Abstraction newSource = source;
-						if(!source.isAbstractionActive())
-							if(callSite != null)
-								if (callSite == source.getActivationUnit()
-										|| isCallSiteActivatingTaint(callSite, source.getActivationUnit()))
-									newSource = source.getActiveCopy();
+//						if(!source.isAbstractionActive())
+//							if(callSite != null)
+//								if (callSite == source.getActivationUnit()
+//										|| isCallSiteActivatingTaint(callSite, source.getActivationUnit()))
+//									newSource = source.getActiveCopy();
 						
 						//if abstraction is not active and activeStmt was in this method, it will not get activated = it can be removed:
 						if(!newSource.isAbstractionActive() && newSource.getActivationUnit() != null)
@@ -867,6 +887,11 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 						if (killAll.value)
 							return Collections.emptySet();
 						boolean passOn = !killSource.value;
+//						if(ruleReturnRes != null)
+//						for(Abstraction d3 : ruleReturnRes) {
+//							if(d3.getUseStmts() == null)
+//								throw new RuntimeException("rulereturnres abs should have a use stmt set");
+//						}
 						
 						// Do not propagate zero abstractions
 						if (source == getZeroValue())
@@ -879,10 +904,10 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 						if(ruleReturnRes == null)
 							ruleReturnRes = new HashSet<>();
 
-						if (newSource.getTopPostdominator() != null
-								&& newSource.getTopPostdominator().getUnit() == null)
-							return Collections.singleton(newSource);
-						
+//						if (newSource.getTopPostdominator() != null
+//								&& newSource.getTopPostdominator().getUnit() == null)
+//							return Collections.singleton(newSource);
+//
 						// Static taints must always go through the callee
 						if (newSource.getAccessPath().isStaticFieldRef())
 							passOn = false;
@@ -987,12 +1012,20 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 								dfg = DataFlowGraphQuery.v().useBaseTofindForwardDataFlowGraph(abs.getAccessPath().getPlainValue(), iCallStmt);
 
 							//debugdebug
-							//SootMethod m = manager.getICFG().getMethodOf(iCallStmt);
-							if(dfg == null)
-								throw new RuntimeException("Wapper AccessPath cant find the relative Dfg, it should be built before using! ");
+							SootMethod m = manager.getICFG().getMethodOf(iCallStmt);
+							if(dfg == null) {
+								continue;
+//								System.out.println(m.getActiveBody());
+//								throw new RuntimeException("Wapper AccessPath cant find the relative Dfg, it should be built before using! ");
+
+							}
 
 							ruleReturnRes.add(dfg.deriveNewAbsbyAbs(abs));
+
+
+
 						}
+
 						
 						return ruleReturnRes;
 					}

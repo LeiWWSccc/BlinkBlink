@@ -38,6 +38,7 @@ public interface FastSolverLinkedNode<D, N> extends LinkedNode<D>, Cloneable {
 	public D getActiveCopy();
 
 	public Set<N> getUseStmts() ;
+	public void setUseStmts(Set<N> useStmts) ;
 
 	public void clearUseStmts() ;
 	

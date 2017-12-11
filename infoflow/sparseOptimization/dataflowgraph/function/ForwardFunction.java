@@ -4,6 +4,7 @@ import heros.solver.Pair;
 import soot.SootField;
 import soot.Value;
 import soot.jimple.ReturnStmt;
+import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlockGraph;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.BaseInfoStmt;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DFGEntryKey;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
@@ -48,7 +49,16 @@ public class ForwardFunction extends AbstractFunction {
 
         if(target.base == null) {
             //return
-            if(target.stmt instanceof ReturnStmt || canNodeReturn(source.getValue())) {
+            boolean found = canNodeReturn(source.getValue());
+            if(target.stmt instanceof ReturnStmt) {
+                ReturnStmt returnStmt = (ReturnStmt)target.stmt;
+                Value retLocal = returnStmt.getOp();
+                Pair<Value, SootField> pair = BasicBlockGraph.getBaseAndField(retLocal);
+                Value retBase = pair.getO1();
+                if(retBase != null && retBase.equals(source.getValue()))
+                    found = true;
+            }
+            if(found) {
             //if(true){
                 DataFlowNode returnNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, null, false);
                 returnNode = getNewDataFlowNode(target, returnNode);
@@ -98,6 +108,7 @@ public class ForwardFunction extends AbstractFunction {
             }
 
             if(targetRightFields != null) {
+                //source : a.f
                 //(1.2) like : xxx = a; or xxx = a.f1; or xxx = a.f2;
 
                 for(int i = 0; i < targetRightFields.length; i++) {
@@ -139,6 +150,8 @@ public class ForwardFunction extends AbstractFunction {
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
                         source.setSuccs(sourceField, newNode);
+                        throw new RuntimeException("a.f as a func parameter!");
+
                     }else {
                         //(1.3.3) foo(a.f2); source : a.f1, do nothing.
 

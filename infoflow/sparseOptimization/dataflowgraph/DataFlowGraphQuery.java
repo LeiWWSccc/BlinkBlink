@@ -23,9 +23,17 @@ public class DataFlowGraphQuery {
 
     final private IInfoflowCFG iCfg;
 
-    final private  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg ;
+     private  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg ;
 
-    final private  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg ;
+     private  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg ;
+
+
+     private  Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> newdfg ;
+
+     private  Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> newbackwardDfg ;
+
+
+    final private Map<SootMethod, BasicBlockGraph> methodToBasicBlockGraphMap ;
 
 
     public static DataFlowGraphQuery v() {
@@ -33,19 +41,44 @@ public class DataFlowGraphQuery {
             throw new RuntimeException("DataFlowGraphQuery doesn't initialize!");
         return instance;}
 
-    DataFlowGraphQuery(IInfoflowCFG iCfg,
-                       Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg,
-                       Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg) {
+    public DataFlowGraphQuery(IInfoflowCFG iCfg,
+                              Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> dfg,
+                              Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> backwardDfg,
+                              Map<SootMethod, BasicBlockGraph> methodToBasicBlockGraphMap) {
         this.iCfg = iCfg;
-        this.dfg = dfg;
-        this.backwardDfg = backwardDfg;
+        this.newdfg = dfg;
+        this.newbackwardDfg = backwardDfg;
+        this.methodToBasicBlockGraphMap = methodToBasicBlockGraphMap;
     }
 
-    public static void initialize(IInfoflowCFG iCfg,
-                                  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg,
-                                  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg) {
-        instance = new DataFlowGraphQuery(iCfg, dfg, backwardDfg);
+//    DataFlowGraphQuery(IInfoflowCFG iCfg,
+//                       Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg,
+//                       Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg,
+//                       Map<SootMethod, BasicBlockGraph> methodToBasicBlockGraphMap) {
+//        this.iCfg = iCfg;
+//        this.dfg = dfg;
+//        this.backwardDfg = backwardDfg;
+//        this.methodToBasicBlockGraphMap = methodToBasicBlockGraphMap;
+//    }
 
+    public static void newInitialize(IInfoflowCFG iCfg,
+                                  Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> dfg,
+                                  Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> backwardDfg,
+                                  Map<SootMethod, BasicBlockGraph> methodToBasicBlockGraphMap) {
+        instance = new DataFlowGraphQuery(iCfg, dfg, backwardDfg, methodToBasicBlockGraphMap);
+
+    }
+
+//    public static void initialize(IInfoflowCFG iCfg,
+//                                  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg,
+//                                  Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> backwardDfg,
+//                                  Map<SootMethod, BasicBlockGraph> methodToBasicBlockGraphMap) {
+//        instance = new DataFlowGraphQuery(iCfg, dfg, backwardDfg, methodToBasicBlockGraphMap);
+//
+//    }
+
+    public Map<SootMethod, BasicBlockGraph> getMethodToBasicBlockGraphMap() {
+        return this.methodToBasicBlockGraphMap;
     }
 
     public DataFlowNode useApTofindDataFlowGraph(AccessPath ap, Unit stmt) {
@@ -57,12 +90,13 @@ public class DataFlowGraphQuery {
 
         DFGEntryKey key = new DFGEntryKey(stmt, base, field1);
 
-        if(!dfg.containsKey(caller)) return null;
-        Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> l1 = dfg.get(caller);
-        if(!l1.containsKey(base)) return null;
-        Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> l2 = l1.get(base);
-        if(!l2.containsKey(key)) return null;
-        Pair<BaseInfoStmt, DataFlowNode> pair = l2.get(key);
+//        if(!dfg.containsKey(caller)) return null;
+//        Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> l1 = dfg.get(caller);
+//        if(!l1.containsKey(base)) return null;
+//        Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> l2 = l1.get(base);
+//        if(!l2.containsKey(key)) return null;
+//        Pair<BaseInfoStmt, DataFlowNode> pair = l2.get(key);
+        Pair<BaseInfoStmt, DataFlowNode> pair = newdfg.get(key);
         if(pair == null) return null;
 
         return pair.getO2();
@@ -74,11 +108,11 @@ public class DataFlowGraphQuery {
 
     public DataFlowNode useValueTofindBackwardDataFlowGraph(Value value, Unit stmt, boolean isOriginal) {
         Pair<Value, SootField> pair = BasicBlockGraph.getBaseAndField(value);
-        return useBaseAndFieldTofindDataFlowGraph(pair.getO1(), pair.getO2(), stmt, isOriginal, false);
+        return useBaseAndFieldTofindDataFlowGraph(pair.getO1(), pair.getO2(), stmt, isOriginal, true, false);
     }
 
     public DataFlowNode useBaseTofindBackwardDataFlowGraph(Value base, Unit stmt, boolean isOriginal) {
-        return useBaseAndFieldTofindDataFlowGraph(base, null, stmt, isOriginal, false);
+        return useBaseAndFieldTofindDataFlowGraph(base, null, stmt, isOriginal, true, false);
     }
 
     public DataFlowNode useBaseTofindBackwardDataFlowGraph(Value base, Unit stmt ) {
@@ -86,10 +120,11 @@ public class DataFlowGraphQuery {
     }
 
 
+    public static long count = 0;
 
+    public  DataFlowNode useBaseAndFieldTofindDataFlowGraphOld(Value base, SootField field, Unit stmt, boolean isOriginal, boolean isForward) {
 
-
-    public  DataFlowNode useBaseAndFieldTofindDataFlowGraph(Value base, SootField field, Unit stmt, boolean isOriginal, boolean isForward) {
+        long beforeFsolver = System.nanoTime();
         Map<SootMethod, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>> dfg;
         if(isForward)
             dfg = this.dfg;
@@ -109,8 +144,34 @@ public class DataFlowGraphQuery {
         if(!l2.containsKey(key)) return null;
         Pair<BaseInfoStmt, DataFlowNode> pair = l2.get(key);
         if(pair == null) return null;
-
+        count += (System.nanoTime() - beforeFsolver);
         return pair.getO2();
+    }
+
+    public  DataFlowNode useBaseAndFieldTofindDataFlowGraph(Value base, SootField field, Unit stmt, boolean isOriginal,boolean isLeft , boolean isForward) {
+
+        long beforeFsolver = System.nanoTime();
+        Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> dfg;
+        if(isForward)
+            dfg = this.newdfg;
+        else
+            dfg = this.newbackwardDfg;
+
+        SootMethod caller = iCfg.getMethodOf(stmt);
+        if(field == null)
+            field = DataFlowNode.baseField;
+
+        DFGEntryKey key = new DFGEntryKey(stmt, base, field, isOriginal, isLeft);
+
+        Pair<BaseInfoStmt, DataFlowNode> pair = dfg.get(key);
+        if(pair == null) return null;
+        count += (System.nanoTime() - beforeFsolver);
+        return pair.getO2();
+    }
+
+    public DataFlowNode useValueTofindForwardDataFlowGraph(Value value, Unit stmt, boolean isOriginal, boolean isLeft) {
+        Pair<Value, SootField> pair = BasicBlockGraph.getBaseAndField(value);
+        return useBaseAndFieldTofindDataFlowGraph(pair.getO1(), pair.getO2(), stmt, isOriginal, isLeft, true);
     }
 
     public DataFlowNode useValueTofindForwardDataFlowGraph(Value value, Unit stmt) {
@@ -119,11 +180,11 @@ public class DataFlowGraphQuery {
 
     public DataFlowNode useValueTofindForwardDataFlowGraph(Value value, Unit stmt, boolean isOriginal) {
         Pair<Value, SootField> pair = BasicBlockGraph.getBaseAndField(value);
-        return useBaseAndFieldTofindDataFlowGraph(pair.getO1(), pair.getO2(), stmt, isOriginal, true);
+        return useBaseAndFieldTofindDataFlowGraph(pair.getO1(), pair.getO2(), stmt, isOriginal, true, true);
     }
 
     public DataFlowNode useBaseTofindForwardDataFlowGraph(Value base, Unit stmt, boolean isOriginal) {
-        return useBaseAndFieldTofindDataFlowGraph(base, null, stmt, isOriginal, true);
+        return useBaseAndFieldTofindDataFlowGraph(base, null, stmt, isOriginal, true, true);
     }
 
     public DataFlowNode useBaseTofindForwardDataFlowGraph(Value base, Unit stmt ) {

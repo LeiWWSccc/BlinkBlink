@@ -22,12 +22,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import soot.SootMethod;
 import soot.Unit;
+import soot.jimple.GotoStmt;
+import soot.jimple.IfStmt;
 import soot.jimple.infoflow.collect.ConcurrentHashSet;
 import soot.jimple.infoflow.collect.MyConcurrentHashMap;
 import soot.jimple.infoflow.memory.IMemoryBoundedSolver;
 import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
 import soot.jimple.infoflow.solver.executors.SetPoolExecutor;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
+import soot.jimple.infoflow.sparseOptimization.dataflowgraph.InnerBBFastBuildDFGSolver;
+import soot.jimple.internal.AbstractOpStmt;
+import soot.jimple.internal.AbstractSwitchStmt;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 import java.util.*;
@@ -182,7 +187,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		for(Entry<N, Set<D>> seed: initialSeeds.entrySet()) {
 			N startPoint = seed.getKey();
 			for(D val: seed.getValue())
-				propagate(zeroValue, startPoint, val, null, false);
+				propagate(null , zeroValue, startPoint, val, null, false);
 			addFunction(new PathEdge<N, D>(zeroValue, startPoint, zeroValue));
 		}
 	}
@@ -274,17 +279,20 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			Collection<N> startPointsOf = icfg.getStartPointsOf(sCalledProcN);
 			//for each result node of the call-flow function
 			for(D d3: res) {
-				if (memoryManager != null)
-					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
+//				if (memoryManager != null)
+//					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
 				if (d3 == null)
 					continue;
 				
 				//for each callee's start point(s)
-				for(N sP: startPointsOf) {
-					//create initial self-loop
-					propagate(d3, sP, d3, n, false, true); //line 15
-				}
-				
+//				for(N sP: startPointsOf) {
+//					//create initial self-loop
+//				}
+				if(d3.getUseStmts() == null)
+					throw new RuntimeException("call abs should have a use stmt set");
+				propagateWapper(null, d3, null, d3, n, false, true); //line 15
+
+
 				//register the fact that <sp,d3> has an incoming edge from <n,d2>
 				//line 15.1 of Naeem/Lhotak/Rodriguez
 				if (!addIncoming(sCalledProcN,d3,n,d1,d2))
@@ -307,20 +315,24 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 							FlowFunction<D> retFunction = flowFunctions.getReturnFlowFunction(n, sCalledProcN, eP, retSiteN);
 							//for each target value of the function
 							for(D d5: computeReturnFlowFunction(retFunction, d3, d4, n, Collections.singleton(d1))) {
-								if (memoryManager != null)
-									d5 = memoryManager.handleGeneratedMemoryObject(d4, d5);
-								
+//								if (memoryManager != null)
+//									d5 = memoryManager.handleGeneratedMemoryObject(d4, d5);
+//
 								// If we have not changed anything in the callee, we do not need the facts
 								// from there. Even if we change something: If we don't need the concrete
 								// path, we can skip the callee in the predecessor chain
 								D d5p = d5;
-								if (d5.equals(d2))
+								if (d5.equals(d2)) {
 									d5p = d2;
+									d5p.setUseStmts(d5.getUseStmts());
+								}
 								else if (setJumpPredecessors && d5p != d2) {
 									d5p = d5p.clone();
 									d5p.setPredecessor(d2);
 								}
-								propagate(d1, retSiteN, d5p, n, false, true);
+								if(d5p.getUseStmts() == null)
+									throw new RuntimeException("return abs should have a use stmt set");
+								propagateWapper(retSiteN, d1, retSiteN, d5p, n, false, true);
 							}
 						}
 					}
@@ -331,10 +343,13 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		for (N returnSiteN : returnSiteNs) {
 			FlowFunction<D> callToReturnFlowFunction = flowFunctions.getCallToReturnFlowFunction(n, returnSiteN);
 			for(D d3: computeCallToReturnFlowFunction(callToReturnFlowFunction, d1, d2)) {
-				if (memoryManager != null)
-					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
-				if (d3 != null)
-					propagateWapper(d1, returnSiteN, d3, n, false);
+//				if (memoryManager != null)
+//					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
+				if (d3 != null) {
+//					if(d3.getUseStmts() == null)
+//						throw new RuntimeException("calltoreturn abs should have a use stmt set");
+					propagateWapper(returnSiteN, d1, returnSiteN, d3, n, false);
+				}
 			}
 		}
 	}
@@ -411,8 +426,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 						final D predVal = d1d2entry.getValue();
 						
 						for(D d5: targets) {
-							if (memoryManager != null)
-								d5 = memoryManager.handleGeneratedMemoryObject(d2, d5);
+//							if (memoryManager != null)
+//								d5 = memoryManager.handleGeneratedMemoryObject(d2, d5);
 							if (d5 == null)
 								continue;
 							
@@ -420,13 +435,17 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 							// from there. Even if we change something: If we don't need the concrete
 							// path, we can skip the callee in the predecessor chain
 							D d5p = d5;
-							if (d5.equals(predVal))
+							if (d5.equals(predVal)){
 								d5p = predVal;
+								d5p.setUseStmts(d5.getUseStmts());
+							}
 							else if (setJumpPredecessors && d5p != predVal) {
 								d5p = d5p.clone();
 								d5p.setPredecessor(predVal);
 							}
-							propagate(d4, retSiteC, d5p, c, false, true);
+							if(d5p.getUseStmts() == null)
+								throw new RuntimeException("return abs should have a use stmt set");
+							propagateWapper(retSiteC, d4, retSiteC, d5p, c, false, true);
 						}
 					}
 				}
@@ -445,8 +464,11 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 					for(D d5: targets) {
 						if (memoryManager != null)
 							d5 = memoryManager.handleGeneratedMemoryObject(d2, d5);
-						if (d5 != null)
-							propagate(zeroValue, retSiteC, d5, c, true, callerMethod == methodThatNeedsSummary);
+						if (d5 != null) {
+							if(d5.getUseStmts() == null)
+								throw new RuntimeException("return abs should have a use stmt set");
+							propagateWapper(retSiteC, zeroValue, retSiteC, d5, c, true, callerMethod == methodThatNeedsSummary);
+						}
 					}
 				}
 			}
@@ -484,7 +506,10 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		final D d1 = edge.factAtSource();
 		final N n = edge.getTarget(); 
 		final D d2 = edge.factAtTarget();
-		
+		if((Unit)n instanceof GotoStmt|| (Unit)n instanceof IfStmt || (Unit)n instanceof AbstractSwitchStmt || (Unit)n instanceof AbstractOpStmt) {
+			return ;
+		}
+
 		for (N m : icfg.getSuccsOf(n)) {
 			// Early termination check
 	    	if (killFlag)
@@ -494,10 +519,13 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			FlowFunction<D> flowFunction = flowFunctions.getNormalFlowFunction(n,m);
 			Set<D> res = computeNormalFlowFunction(flowFunction, d1, d2);
 			for (D d3 : res) {
-				if (memoryManager != null && d2 != d3)
-					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
-				if (d3 != null)
-					propagateWapper(d1, m, d3, null, false);
+//				if (memoryManager != null && d2 != d3)
+//					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
+				if (d3 != null) {
+					if(d3.getUseStmts() == null)
+						throw new RuntimeException("normal abs should have a use stmt set");
+					propagateWapper(n, d1, m, d3, null, false);
+				}
 			}
 		}
 	}
@@ -515,23 +543,25 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		return flowFunction.computeTargets(d2);
 	}
 
-	protected void propagateWapper(D sourceVal, N target, D targetVal,
+	protected void propagateWapper(N def, D sourceVal, N target, D targetVal,
 			/* deliberately exposed to clients */ N relatedCallSite,
 			/* deliberately exposed to clients */ boolean isUnbalancedReturn) {
-		propagateWapper(sourceVal, target, targetVal, relatedCallSite, isUnbalancedReturn, false);
+		propagateWapper(def, sourceVal, target, targetVal, relatedCallSite, isUnbalancedReturn, false);
 	}
 
 
-	protected void propagateWapper(D sourceVal, N target, D targetVal,
+	protected void propagateWapper(N def, D sourceVal, N target, D targetVal,
 			/* deliberately exposed to clients */ N relatedCallSite,
 			/* deliberately exposed to clients */ boolean isUnbalancedReturn,
 								   boolean forceRegister) {
 		Set<N> useStmts = targetVal.getUseStmts();
 		targetVal.clearUseStmts();
 		if(useStmts == null)
-			throw new RuntimeException("Every abs should have a use stmt");
+			return ;
+			//throw new RuntimeException("Every abs should have a use stmt set");
+		//useStmts set size can be null
 		for(N newTarget : useStmts) {
-			propagate(sourceVal, newTarget, targetVal, relatedCallSite, isUnbalancedReturn, forceRegister);
+			propagate(def, sourceVal, newTarget, targetVal, relatedCallSite, isUnbalancedReturn, forceRegister);
 		}
 
 	}
@@ -546,10 +576,10 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	 * @param isUnbalancedReturn <code>true</code> if this edge is propagating an unbalanced return
 	 *        (this value is not used within this implementation but may be useful for subclasses of {@link IFDSSolver}) 
 	 */
-	protected void propagate(D sourceVal, N target, D targetVal,
+	protected void propagate(N def, D sourceVal, N target, D targetVal,
 		/* deliberately exposed to clients */ N relatedCallSite,
 		/* deliberately exposed to clients */ boolean isUnbalancedReturn) {
-		propagate(sourceVal, target, targetVal, relatedCallSite, isUnbalancedReturn, false);
+		propagate(def, sourceVal, target, targetVal, relatedCallSite, isUnbalancedReturn, false);
 	}
 
 
@@ -566,7 +596,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	 * 		  This can happen when externally injecting edges that don't come out of this
 	 * 		  solver.
 	 */
-	protected void propagate(D sourceVal, N target, D targetVal,
+	protected void propagate(N def, D sourceVal, N target, D targetVal,
 			/* deliberately exposed to clients */ N relatedCallSite,
 			/* deliberately exposed to clients */ boolean isUnbalancedReturn,
 			boolean forceRegister) {
@@ -603,10 +633,17 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 				if (jumpFunctions.containsKey(activeEdge))
 					return;
 			}
-			scheduleEdgeProcessing(edge);
+
+			PathEdge<N, D> newEdge = activateEdge(edge, def);
+			scheduleEdgeProcessing(newEdge);
 		}
 	}
-	
+
+	protected PathEdge<N, D> activateEdge(PathEdge<N, D> oldEdge, N def) {
+		return oldEdge;
+	}
+
+
 	/**
 	 * Records a jump function. The source statement is implicit.
 	 * @see PathEdge
@@ -689,6 +726,15 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			logger.info("No statistics were collected, as DEBUG is disabled.");
 		}
 	}
+
+	public static long count= 0;
+	public static long countCall = 0;
+	public static long countNormal = 0;
+	public static long countExit = 0;
+
+	//static String st = "$r0.<com.flurry.android.aa: android.content.Context a> = $r1";
+	static String st = "$r8 = $r0.<com.wEditingHDVideo.MainNavigationActivity: com.wEditingHDVideo.ads.AdsLoader adsLoader>";
+	static int aaa = 0;
 	
 	private class PathEdgeProcessingTask implements Runnable {
 		
@@ -701,16 +747,35 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		}
 
 		public void run() {
+			boolean found = false;
+			SootMethod m = (SootMethod)icfg.getMethodOf(edge.getTarget());
+			for(String func : InnerBBFastBuildDFGSolver.debugFunc)
+				if(m.toString().contains(func)) {
+					found = true;
+					break;
+				}
+			if(st.equals(edge.getTarget().toString()) && edge.factAtTarget().toString().contains("_bannerUrl"))
+				found = true;
+			if(found)
+				aaa++;
+
+			long beforeFsolver = System.nanoTime();
 			if(icfg.isCallStmt(edge.getTarget())) {
 				processCall(edge);
+				countCall += (System.nanoTime() - beforeFsolver);
 			} else {
 				//note that some statements, such as "throw" may be
 				//both an exit statement and a "normal" statement
-				if(icfg.isExitStmt(edge.getTarget()))
+				if(icfg.isExitStmt(edge.getTarget())) {
 					processExit(edge);
-				if(!icfg.getSuccsOf(edge.getTarget()).isEmpty())
+					countExit += (System.nanoTime() - beforeFsolver);
+				}
+				if(!icfg.getSuccsOf(edge.getTarget()).isEmpty()) {
 					processNormalFlow(edge);
+					countNormal += (System.nanoTime() - beforeFsolver);
+				}
 			}
+
 		}
 
 		@Override

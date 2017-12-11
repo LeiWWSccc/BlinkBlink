@@ -43,17 +43,17 @@ public class FlowSensitiveAliasStrategy extends AbstractBulkAliasStrategy {
 
 		if(manager.getConfig().isSparseOptEnabled()) {
 			if(newAbs.isAbstractionActive()) {
-				Set<Unit> activeUnits = manager.getActivationUnitsToUnits().putIfAbsentElseGet(new Pair<SootMethod, Unit>
+				Set<Unit> activeUnits = getSolver().getTabulationProblem().getManager().getActivationUnitsToUnits().putIfAbsentElseGet(new Pair<SootMethod, Unit>
 						(manager.getICFG().getMethodOf(src), src), new ConcurrentHashSet<Unit>());
 				activeUnits.add(src);
 			}
 			for(Unit predUnit : getNextStmtFromDfg(targetValue, src, bwAbs))
 				bSolver.processEdge(new PathEdge<Unit, Abstraction>(d1,
-						predUnit, bwAbs));
+						predUnit, bwAbs), null);
 		}else {
 			for (Unit predUnit : manager.getICFG().getPredsOf(src))
 				bSolver.processEdge(new PathEdge<Unit, Abstraction>(d1,
-						predUnit, bwAbs));
+						predUnit, bwAbs), null);
 		}
 
 	}

@@ -30,7 +30,8 @@ public class InfoflowAndroidConfiguration extends InfoflowConfiguration {
 	private PathBuilder pathBuilder = PathBuilder.ContextInsensitiveSourceFinder;
 	
 	private boolean enableCallbacks = true;
-	private boolean enableCallbackSources = true;
+	private boolean enableCallbackSources = false;
+	//private boolean enableCallbackSources = true;
 	private boolean enableLifecycleSources = false;
 	private boolean filterThreadCallbacks = true;
 	private int maxCallbacksPerComponent = 100;

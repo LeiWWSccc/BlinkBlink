@@ -1,7 +1,5 @@
 package soot.jimple.infoflow.solver;
 
-import java.util.Set;
-
 import heros.solver.Pair;
 import heros.solver.PathEdge;
 import soot.SootMethod;
@@ -9,6 +7,8 @@ import soot.Unit;
 import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.problems.AbstractInfoflowProblem;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
+
+import java.util.Set;
 
 public interface IInfoflowSolver {
 	
@@ -19,7 +19,8 @@ public interface IInfoflowSolver {
 	 * already been processed earlier) false
 	 */
 	public boolean processEdge(PathEdge<Unit, Abstraction> edge);
-	
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt);
+
 	/**
 	 * Gets the end summary of the given method for the given incoming
 	 * abstraction

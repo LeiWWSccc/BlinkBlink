@@ -600,13 +600,15 @@ public class SparseIFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends B
 					return;
 			}
 			PathEdge<N, D> newEdge = activateEdge(edge);
-			scheduleEdgeProcessing(edge);
+			scheduleEdgeProcessing(newEdge);
 		}
 	}
 
-	protected PathEdge<N, D> activateEdge(PathEdge<N, D> oldEdge) {
+	PathEdge<N, D> activateEdge(PathEdge<N, D> oldEdge) {
 		return oldEdge;
 	}
+
+
 	/**
 	 * Records a jump function. The source statement is implicit.
 	 * @see PathEdge

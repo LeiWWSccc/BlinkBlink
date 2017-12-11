@@ -114,6 +114,7 @@ public class Abstraction implements Cloneable, FastSolverLinkedNode<Abstraction,
 			isImplicit = false;
 		}
 		else {
+			useStmts = original.useStmts;
 			sourceContext = original.sourceContext;
 			exceptionThrown = original.exceptionThrown;
 			activationUnit = original.activationUnit;
