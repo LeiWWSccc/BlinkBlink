@@ -28,6 +28,10 @@ public class BackwardFunction extends AbstractFunction {
         Set<Pair<BaseInfoStmt, DataFlowNode>> res = new HashSet<>();
 
 
+        if(target.base == null && !target.isHead) {
+            addResult(res, target, source);
+            return res;
+        }
         if (target.base == null) {
             //return
             if(canNodeReturn(source.getValue())) {
@@ -65,21 +69,33 @@ public class BackwardFunction extends AbstractFunction {
                 if (targetLeftField == baseField ) {
                     //(1.1.1) a = xxx;  source : a.f1 , gen f1 -> <a>
                     // a = b;
-                    // a.f1 = pwd;
+                    // a.f1 = pwd;  or alias = a.f1  ;
 
-                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, false);
+                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, true);
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(sourceField, newNode);
                     //res.add(newNode);
+                    if(!(target.stmt instanceof IdentityStmt))
+                         isKillSource = true;
+                    /* //fix bug, version 2
+                       a = c;
+                       a = b;
+                       a.f1 = source();
+                       c.f should not be tainted!
+                    */
 
                 }else if(targetLeftField.equals(sourceField)) {
                     //(1.1.2) a.f1 = xxx; source : a.f1  , gen f1 -> <a.f1>
                     // a.f1 = b;
                     // a.f1 = pwd;
-                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, false);
+                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, true);
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(sourceField, newNode);
                    // source.setKillField(targetLeftField);
+                    // TODO
+                    if(!(target.stmt instanceof IdentityStmt))
+                        isKillSource = true;
+
 
                 }  else {
                     //(1.1.3) a.f2 = xxx;  source : a.f1, do nothing.
@@ -93,14 +109,14 @@ public class BackwardFunction extends AbstractFunction {
             if (targetRightFields != null) {
                 //(1.2) like : xxx = a; or xxx = a.f1; or xxx = a.f2;
                 if(targetRightFields.length != 1) {
-                    throw new RuntimeException("Sparse Op: Alias analysi should't at two or more rightOP ");
+                    throw new RuntimeException("Sparse Op: Alias analysis should't at two or more rightOP ");
                 }
 
                 SootField right = targetRightFields[0];
 
                 if (right == baseField || sourceField.equals(right)) {
-                    //(1.2.1) xxx = a;  source : a.f1  , kill source
-                    //(1.2.2) xxx = a.f1;   source : a.f1 , kill source
+                    //(1.2.1) xxx = a;  source : a.f1
+                    //(1.2.2) xxx = a.f1;   source : a.f1
                     newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(sourceField, newNode);
@@ -127,6 +143,7 @@ public class BackwardFunction extends AbstractFunction {
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
                         source.setSuccs(sourceField, newNode);
+                        isKillSource = true;
                         //res.add(newNode);
                     } else {
                         //(1.3.3) foo(a.f2); source : a.f1, do nothing.
@@ -147,10 +164,9 @@ public class BackwardFunction extends AbstractFunction {
                     // a = c;
 
                     // a = b;   kill source
-                    // a.f = pwd;
+                    // source(a);
 
-
-                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, false);
+                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, true);
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(sourceField, newNode);
                     if(!(target.stmt instanceof IdentityStmt))
@@ -158,9 +174,15 @@ public class BackwardFunction extends AbstractFunction {
 
                 } else {
                     //(1) a.f1 = xxx ; source : a  , gen new a.f1
-                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, false);
+
+                    // a = b;
+                    // a.f1 = xxx;
+                    // source(a);
+
+                    newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, targetLeftField, true);
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(sourceField, newNode);
+
                 }
 
             }
@@ -180,7 +202,7 @@ public class BackwardFunction extends AbstractFunction {
                     // c = a;
 
                     // b = a;
-                    // a.f = pwd;
+                    // source(a);
 
                     newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
                     newNode = getNewDataFlowNode(target, newNode);
@@ -194,12 +216,11 @@ public class BackwardFunction extends AbstractFunction {
                     newNode = getNewDataFlowNode(target, newNode);
                     source.setSuccs(right, newNode);
                     // b = a.f1
-                    // a.f1 = pwd;   strong update !!!
+                    // source(a);  if source = a.f1  strong update !!!
 
                     // b = a.f2;
-                    // a.f1 = pwd;    no strong update
+                    // source(a);  if source = a.f1  no strong update
 
-                   // source.setKillField(right);
                 }
             }
 
@@ -219,6 +240,7 @@ public class BackwardFunction extends AbstractFunction {
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
                         source.setSuccs(arg, newNode);
+                        isKillSource = true;
                     }
                 }
             }

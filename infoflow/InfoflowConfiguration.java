@@ -95,10 +95,10 @@ public class InfoflowConfiguration {
 	}
 	
 	private int accessPathLength = 5;
-	private boolean useRecursiveAccessPaths = false;
-	//private boolean useRecursiveAccessPaths = true;
-	private boolean useThisChainReduction = false;
-	//private boolean useThisChainReduction = true;
+	//private boolean useRecursiveAccessPaths = false;
+	private boolean useRecursiveAccessPaths = true;
+	//private boolean useThisChainReduction = false;
+	private boolean useThisChainReduction = true;
 	private static boolean pathAgnosticResults = true;
 	private static boolean oneResultPerAccessPath = false;
 	private static boolean mergeNeighbors = false;
@@ -106,8 +106,8 @@ public class InfoflowConfiguration {
 	
 	private int stopAfterFirstKFlows = 0;
 	private boolean enableImplicitFlows = false;
-	private boolean enableStaticFields = false;
 	//private boolean enableStaticFields = true;
+	private boolean enableStaticFields = false;
 	private boolean enableExceptions = false;
 	//private boolean enableExceptions = true;
 	private boolean enableArraySizeTainting = true;
@@ -201,7 +201,7 @@ public class InfoflowConfiguration {
 	/**
 	 * Gets the maximum depth of the access paths. All paths will be truncated
 	 * if they exceed the given size.
-	 * @param accessPathLength the maximum value of an access path.
+	 * @param //accessPathLength the maximum value of an access path.
 	 */
 	public int getAccessPathLength() {
 		return accessPathLength;
@@ -630,7 +630,7 @@ public class InfoflowConfiguration {
 	/**
 	 * Sets whether and how FlowDroid shall eliminate irrelevant code before
 	 * running the taint propagation
-	 * @param Mode the mode of dead and irrelevant code eliminiation to be
+	 * @param mode the mode of dead and irrelevant code eliminiation to be
 	 * used
 	 */
 	public void setCodeEliminationMode(CodeEliminationMode mode) {
@@ -926,6 +926,12 @@ public class InfoflowConfiguration {
 	 */
 	public void setSparseOptEnabled(boolean sparseOptEnabled) {
 		this.sparseOptEnabled = sparseOptEnabled;
+	}
+
+
+	public void setNoRecur() {
+		this.useRecursiveAccessPaths = false;
+		this.useThisChainReduction = false;
 	}
 
 

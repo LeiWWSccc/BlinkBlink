@@ -16,12 +16,14 @@ public class BaseInfoStmt {
     public int idx ;
     public Value base;
     public Stmt stmt;
+    public boolean isHead;
 
     public SootField leftField;
     public SootField[] rightFields;
     public SootField[] argsFields;
 
-    public BaseInfoStmt(Value base, SootField left, SootField[] rightFields, SootField[] argsFields, BasicBlock bb, int i, Stmt s) {
+    public BaseInfoStmt(boolean isHead, Value base, SootField left, SootField[] rightFields, SootField[] argsFields, BasicBlock bb, int i, Stmt s) {
+        this.isHead = isHead;
         this.base = base;
         this.leftField = left;
         this.rightFields = rightFields;

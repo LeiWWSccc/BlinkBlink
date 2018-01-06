@@ -17,11 +17,11 @@ public class BaseInfoStmtFactory {
 
     public static BaseInfoStmtFactory v() {return instance;}
 
-    public BaseInfoStmt createBaseInfo(Value base, SootField leftField, List<SootField> rightFields,
+    public BaseInfoStmt createBaseInfo(boolean isHead, Value base, SootField leftField, List<SootField> rightFields,
                                        List<SootField> argsFields, BasicBlock bb, int idx, Unit stmt) {
         //returnStmt
         if(base == null) {
-            return new BaseInfoStmt(null, null, null,
+            return new BaseInfoStmt(isHead,null, null, null,
                     null, bb, idx, (Stmt)stmt );
         }
 
@@ -38,7 +38,7 @@ public class BaseInfoStmtFactory {
             argsFields.toArray(argsFieldsArray);
         }
 
-        return new BaseInfoStmt(base, leftField, rightFieldsArray,
+        return new BaseInfoStmt(isHead , base, leftField, rightFieldsArray,
                 argsFieldsArray, bb, idx, (Stmt)stmt );
 
     }

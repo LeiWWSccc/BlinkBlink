@@ -1,16 +1,15 @@
 package soot.jimple.infoflow.data;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import soot.Unit;
 import soot.jimple.ReturnStmt;
 import soot.jimple.ReturnVoidStmt;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Memory manager implementation for FlowDroid
@@ -225,7 +224,9 @@ public class FlowDroidMemoryManager implements IMemoryManager<Abstraction, Unit>
 				Abstraction predPred = curAbs.getPredecessor();
 				if (predPred != null) {
 					if (predPred.equals(obj)) {
-						pred = predPred.getPredecessor();
+						if(obj.getUseStmts() != null)
+							predPred.setUseStmts(obj.getUseStmts());
+						//pred = predPred.getPredecessor();
 						obj = predPred;
 					}
 				}
@@ -253,13 +254,20 @@ public class FlowDroidMemoryManager implements IMemoryManager<Abstraction, Unit>
 		// If the abstraction didn't change at all, we can use the old one
 		if (input.equals(output)) {
 			if (output.getCurrentStmt() == null
-					|| input.getCurrentStmt() == output.getCurrentStmt())
+					|| input.getCurrentStmt() == output.getCurrentStmt()) {
+				//sparse!!!
+				if(output.getUseStmts() !=null)
+					input.setUseStmts(output.getUseStmts());
 				return input;
+			}
 			if (input.getCurrentStmt() == null) {
 				synchronized (input) {
 					if (input.getCurrentStmt() == null) {
 						input.setCurrentStmt(output.getCurrentStmt());
 						input.setCorrespondingCallSite(output.getCorrespondingCallSite());
+						//sparse!!!
+						if(output.getUseStmts() !=null)
+							input.setUseStmts(output.getUseStmts());
 						return input;
 					}
 				}

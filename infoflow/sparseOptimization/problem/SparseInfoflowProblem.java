@@ -63,11 +63,11 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 				createZeroValue(), results);
 	}
 
-	public static long countCall = 0;
-	public static long countNormal1 = 0;
-	public static long countNormal2 = 0;
-	public static long countNormal3 = 0;
-	public static long countExit = 0;
+//	public static long countCall = 0;
+//	public static long countNormal1 = 0;
+//	public static long countNormal2 = 0;
+//	public static long countNormal3 = 0;
+//	public static long countExit = 0;
 	
 	@Override
 	public FlowFunctions<Unit, Abstraction, SootMethod> createFlowFunctionsFactory() {
@@ -97,9 +97,15 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 					if (taintPropagationHandler != null)
 						taintPropagationHandler.notifyFlowIn(stmt, source, interproceduralCFG(),
 								FlowFunctionType.NormalFlowFunction);
-					
-					// Compute the new abstractions
-					Set<Abstraction> res = computeTargetsInternal(d1, source);
+
+					Set<Abstraction> res = null;
+					if(manager.getICFG().isStartPoint(stmt)) {
+						res = new HashSet<>();
+						res.add(findStartPointDfg(stmt, source));
+					}else {
+						// Compute the new abstractions
+						res = computeTargetsInternal(d1, source);
+					}
 					return notifyOutFlowHandlers(stmt, d1, source, res,
 							FlowFunctionType.NormalFlowFunction);
 				}
@@ -367,22 +373,18 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 								newSource, stmt, (Stmt) dest, killSource, killAll);
 						if (killAll.value)
 							return Collections.<Abstraction>emptySet();
-						countNormal3 += (System.nanoTime() - beforeFsolver3);
+//						countNormal3 += (System.nanoTime() - beforeFsolver3);
 
 						// Propagate over an assignment
 						if (src instanceof AssignStmt) {
 							final AssignStmt assignStmt = (AssignStmt) src;
 							final Value right = assignStmt.getRightOp();
 							final Value[] rightVals = BaseSelector.selectBaseList(right, true);
-							long beforeFsolver = System.nanoTime();
-
-							if(assignStmt.toString().equals("$i0 = $i0 * $i1"))
-								beforeFsolver++;
 
 							// Create the new taints that may be created by this assignment
 							Set<Abstraction> resAssign = createNewTaintOnAssignment(assignStmt,
 									rightVals, d1, newSource);
-							countNormal1 += (System.nanoTime() - beforeFsolver);
+//							countNormal1 += (System.nanoTime() - beforeFsolver);
 
 							long beforeFsolver2 = System.nanoTime();
 							//我们不需要对source进行传播，因为source会直接传播到他的使用位置
@@ -426,7 +428,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 										res = Collections.singleton(sourceDfn.deriveNewAbsbyAbs(newSource));
 								}
 							}
-							countNormal2 += (System.nanoTime() - beforeFsolver2);
+//							countNormal2 += (System.nanoTime() - beforeFsolver2);
 
 						}
 
@@ -453,13 +455,21 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 
 				final Map<Value, Unit> paramLocalToStmtMap = getParameterLocalsToStmt(dest.getActiveBody());
 
-				final Local[] paramLocals = dest.getActiveBody().getParameterLocals().toArray(
-						new Local[0]);
-				
+				final Local[] paramLocals = DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap().
+						get(dest).getParameterLocals().toArray(new Local[0]);
+
 				// This is not cached by Soot, so accesses are more expensive
 				// than one might think
-				final Local thisLocal = dest.isStatic() ? null : dest.getActiveBody().getThisLocal();
-				
+				final Local thisLocal = dest.isStatic() ? null : DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap()
+						.get(dest).getThisLocal();
+//
+//				final Local[] paramLocals = dest.getActiveBody().getParameterLocals().toArray(
+//						new Local[0]);
+//
+//				// This is not cached by Soot, so accesses are more expensive
+//				// than one might think
+//				final Local thisLocal = dest.isStatic() ? null : dest.getActiveBody().getThisLocal();
+//
 				return new SolverCallFlowFunction() {
 
 					@Override
@@ -509,7 +519,9 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 							return Collections.emptySet();
 						
 						// Map the source access path into the callee
-						Set<Pair<Value, AccessPath>> resMapping = mapValueAndAccessPathToCallee(dest, ie, paramLocals,
+//						Set<Pair<Value, AccessPath>> resMapping = mapValueAndAccessPathToCallee(dest, ie, paramLocals,
+//								thisLocal, source.getAccessPath());
+						Set<AccessPath> resMapping = mapAccessPathToCallee(dest, ie, paramLocals,
 								thisLocal, source.getAccessPath());
 						if (resMapping == null)
 							return res == null || res.isEmpty() ? Collections.<Abstraction>emptySet() : res;
@@ -518,9 +530,9 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 						Set<Abstraction> resAbs = new HashSet<Abstraction>(resMapping.size());
 						if (res != null && !res.isEmpty())
 							resAbs.addAll(res);
-						for (Pair<Value, AccessPath> pair : resMapping) {
-							Value target = pair.getO1();
-							AccessPath ap = pair.getO2();
+						for (AccessPath ap : resMapping) {
+//							Value target = pair.getO1();
+//							AccessPath ap = pair.getO2();
 							if (ap != null) {
 								if (ap.isStaticFieldRef()) {
 									// Do not propagate static fields that are not read inside the callee
@@ -528,10 +540,17 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 											|| interproceduralCFG().isStaticFieldRead(dest, ap.getFirstField())) {
 										Abstraction newAbs = source.deriveNewAbstraction(ap, stmt);
 										if (newAbs != null) {
-											Unit idStmt = paramLocalToStmtMap.get(target);
-											if(idStmt == null)
-												throw new RuntimeException("no id stmt of thr param in OP");
-											resAbs.add(callHelper(target, idStmt, newAbs));
+											resAbs.add(newAbs);
+//											for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
+//												resAbs.add(newAbs);
+//												//resAbs.add(callHelper(sp, newAbs));
+//											}
+//											Unit idStmt = paramLocalToStmtMap.get(target);
+//											if(idStmt == null)
+//												throw new RuntimeException("no id stmt of thr param in OP");
+//											resAbs.add(callHelper(target, idStmt, newAbs));
+
+
 										}
 											//resAbs.add(newAbs);
 									}
@@ -542,10 +561,16 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 										|| interproceduralCFG().methodReadsValue(dest, ap.getPlainValue())) {
 									Abstraction newAbs = source.deriveNewAbstraction(ap, stmt);
 									if (newAbs != null) {
-										Unit idStmt = paramLocalToStmtMap.get(target);
-										if(idStmt == null)
-											throw new RuntimeException("no id stmt of thr param in OP");
-										resAbs.add(callHelper(target, idStmt, newAbs));
+										resAbs.add(newAbs);
+
+//										for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
+//											//resAbs.add(callHelper(sp, newAbs));
+//										}
+
+//										Unit idStmt = paramLocalToStmtMap.get(target);
+//										if(idStmt == null)
+//											throw new RuntimeException("no id stmt of thr param in OP");
+//										resAbs.add(callHelper(target, idStmt, newAbs));
 
 									}
 									//resAbs.add(newAbs);
@@ -558,9 +583,29 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 				};
 			}
 
-			private Abstraction callHelper(Value op , Unit stmt , Abstraction input) {
+
+			private Abstraction findStartPointDfg(Unit stmt , Abstraction input) {
+
+				DataFlowNode dfg = DataFlowGraphQuery.v().useValueTofindForwardDataFlowGraph(input.getAccessPath().getPlainValue(), stmt);
+
+				if(dfg == null) {
+					System.out.println(manager.getICFG().getMethodOf(stmt).getActiveBody());
+					throw new RuntimeException("findStartPointDfg abs should have a use stmt set");
+
+				}
+
+				return dfg.deriveNewAbsbyAbs(input);
+			}
+
+			private Abstraction returnHelper(Value op , Unit stmt , Abstraction input) {
 
 				DataFlowNode dfg = DataFlowGraphQuery.v().useValueTofindForwardDataFlowGraph(op, stmt);
+
+				if(dfg == null) {
+					System.out.println(manager.getICFG().getMethodOf(stmt).getActiveBody());
+					throw new RuntimeException("returnHelper abs should have a use stmt set");
+
+				}
 
 				return dfg.deriveNewAbsbyAbs(input);
 			}
@@ -662,7 +707,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 								Abstraction abs = newSource.deriveNewAbstraction(ap, (Stmt) exitStmt);
 								if (abs != null) {
 
-									res.add(callHelper(leftOp, callSite, abs));
+									res.add(returnHelper(leftOp, callSite, abs));
 									
 									// Aliases of implicitly tainted variables must be mapped back
 									// into the caller's context on return when we leave the last
@@ -749,7 +794,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 
 								if (abs != null) {
 									//res.add(abs);
-									res.add(callHelper(originalCallArg, callSite, abs));
+									res.add(returnHelper(originalCallArg, callSite, abs));
 									
 									// Aliases of implicitly tainted variables must be mapped back
 									// into the caller's context on return when we leave the last
@@ -799,7 +844,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 									Abstraction abs = newSource.deriveNewAbstraction(ap, (Stmt) exitStmt);										
 									if (abs != null) {
 										//res.add(abs);
-										res.add(callHelper(callerBaseLocal, callSite, abs));
+										res.add(returnHelper(callerBaseLocal, callSite, abs));
 									
 										// Aliases of implicitly tainted variables must be mapped back
 										// into the caller's context on return when we leave the last
@@ -1011,6 +1056,8 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 							if(dfg == null)
 								dfg = DataFlowGraphQuery.v().useBaseTofindForwardDataFlowGraph(abs.getAccessPath().getPlainValue(), iCallStmt);
 
+							if(dfg.getSuccs() == null)
+								continue;
 							//debugdebug
 							SootMethod m = manager.getICFG().getMethodOf(iCallStmt);
 							if(dfg == null) {

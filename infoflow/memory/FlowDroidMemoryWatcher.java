@@ -1,13 +1,11 @@
 package soot.jimple.infoflow.memory;
 
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import soot.jimple.infoflow.collect.ConcurrentHashSet;
-import soot.jimple.infoflow.memory.MemoryWarningSystem.OnMemoryThresholdReached;
 import soot.jimple.infoflow.results.InfoflowResults;
+
+import java.util.Set;
 
 /**
  * FlowDroid's implementation of a handler for the memory warning system
@@ -36,22 +34,22 @@ public class FlowDroidMemoryWatcher {
 	 */
 	public FlowDroidMemoryWatcher(InfoflowResults res) {
 		// Register ourselves in the warning system
-		warningSystem.addListener(new OnMemoryThresholdReached() {
-			
-			@Override
-			public void onThresholdReached(long usedMemory, long maxMemory) {
-				// Add the incident to the result object
-				if (results != null)
-					results.addException("Memory threshold reached");
-				
-				// We stop the data flow analysis
-				for (IMemoryBoundedSolver solver : solvers)
-					solver.forceTerminate();
-				logger.warn("Running out of memory, solvers terminated");
-			}
-		
-		});
-		MemoryWarningSystem.setWarningThreshold(0.9d);
+//		warningSystem.addListener(new OnMemoryThresholdReached() {
+//
+//			@Override
+//			public void onThresholdReached(long usedMemory, long maxMemory) {
+//				// Add the incident to the result object
+//				if (results != null)
+//					results.addException("Memory threshold reached");
+//
+//				// We stop the data flow analysis
+//				for (IMemoryBoundedSolver solver : solvers)
+//					solver.forceTerminate();
+//				logger.warn("Running out of memory, solvers terminated");
+//			}
+//
+//		});
+		MemoryWarningSystem.setWarningThreshold(0.999d);
 		this.results = res;
 	}
 	

@@ -34,7 +34,12 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
     //通过每个unit找到基本块内部的index
     final protected Map<Unit, Integer> unitToInnerBBIndexMap = new HashMap<>();
 
-    final protected     Map<BasicBlock, Set<BasicBlock>> bbToReachableBbMap = new HashMap<>();
+    final protected Map<BasicBlock, Set<BasicBlock>> bbToReachableBbMap = new HashMap<>();
+
+    final protected List<Local> parameterLocals ;
+
+
+    protected Local thisLocal = null ;
 
     public BasicBlockGraph(IInfoflowCFG unitGraph, SootMethod m) {
         mBody = m.getActiveBody();
@@ -43,8 +48,20 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
         Set<Unit> leaders = computeLeaders(unitGraph, m);
         buildBlocks(leaders, unitGraph);
 
+
+        final int numParams = method.getParameterCount();
+        parameterLocals = new ArrayList<Local>(numParams);
+
         //计算unit序关系使用
         computeBBReachableMap();
+    }
+
+    public List<Local> getParameterLocals() {
+        return parameterLocals;
+    }
+
+    public Local getThisLocal() {
+        return thisLocal;
     }
 
 
@@ -268,22 +285,23 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
         return bbToReachableBbMap;
 
     }
-    private List<BaseInfoStmt> getEntryBaseStmtList() {
-        List<BaseInfoStmt> entryStmtList = new ArrayList<>();
+    private Set<BaseInfoStmt> getEntryBaseStmtList() {
+        Set<BaseInfoStmt> entryStmtList = new HashSet<>();
         for(BasicBlock bb  : mHeads) {
             if(bb.getPreds().size() != 0)
                 throw new RuntimeException("mHeads computing is wrong");
             Unit head = bb.getHead();
-            Integer innerBBIdx = unitToInnerBBIndexMap.get(head);
+            //Integer innerBBIdx = unitToInnerBBIndexMap.get(head);
+            Integer innerBBIdx = -1;
             BaseInfoStmt baseInfoStmt = BaseInfoStmtFactory.v().
-                    createBaseInfo(null, null, null, null, bb, innerBBIdx, head);
+                    createBaseInfo(true, null, null, null, null, bb, innerBBIdx, head);
             entryStmtList.add(baseInfoStmt);
         }
         return entryStmtList;
     }
 
-    private List<BaseInfoStmt> getExitBaseStmtList() {
-        List<BaseInfoStmt> exitStmtList = new ArrayList<>();
+    private Set<BaseInfoStmt> getExitBaseStmtList() {
+        Set<BaseInfoStmt> exitStmtList = new HashSet<>();
 
         for(BasicBlock bb  : mTails) {
             if(bb.getSuccs().size() != 0)
@@ -292,7 +310,7 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
             Unit tail = bb.getTail();
             Integer innerBBIdx = unitToInnerBBIndexMap.get(tail);
             BaseInfoStmt baseInfoStmt = BaseInfoStmtFactory.v().
-                    createBaseInfo(null, null, null, null, bb, innerBBIdx, tail);
+                    createBaseInfo(false, null, null, null, null, bb, innerBBIdx, tail);
             exitStmtList.add(baseInfoStmt);
         }
         return exitStmtList;
@@ -332,8 +350,8 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
 
         final PatchingChain<Unit> units = method.getActiveBody().getUnits();
 
-        final List<BaseInfoStmt> entryStmtList = getEntryBaseStmtList();
-        final List<BaseInfoStmt> exitStmtList = getExitBaseStmtList();
+        final Set<BaseInfoStmt> entryStmtList = getEntryBaseStmtList();
+        final Set<BaseInfoStmt> exitStmtList = getExitBaseStmtList();
 
         Set<Value> paramAndThis = new HashSet<>();
 
@@ -349,12 +367,6 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
             if(!(u instanceof Stmt))
                 continue;
             final Stmt stmt = (Stmt) u;
-
-            int a = 0;
-            if(stmt.toString().equals("$i1 = staticinvoke <com.appbrain.c.e: int b(int,com.appbrain.c.c)>(36, $r1)"))
-                a ++;
-
-
 
 
             final  BasicBlock bb = unitToBBMap.get(u);
@@ -381,11 +393,24 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
 
             }else if(stmt instanceof IdentityStmt) {
                 final IdentityStmt is = ((IdentityStmt)u);
-                if (is.getRightOp() instanceof ParameterRef || is.getRightOp() instanceof ThisRef){
+                if (is.getRightOp() instanceof ParameterRef){
+                    paramAndThis.add(is.getLeftOp());
+                    //因为我们使用了第二种方法来处理参数和this，虽然不需要处理identityStmt了，
+                    // 但是因为某些时候source 需要找使用点，而此时是identityStmt
+                    addValueToInfoMap(splitedInfoMap, is.getLeftOp(), ValueLocation.ParmAndThis);
+
+
+                    ParameterRef pr = (ParameterRef) is.getRightOp();
+                    parameterLocals.add(pr.getIndex(), (Local) is.getLeftOp());
+
+                }
+                if (is.getRightOp() instanceof ThisRef){
                     paramAndThis.add(is.getLeftOp());
 
                     addValueToInfoMap(splitedInfoMap, is.getLeftOp(), ValueLocation.ParmAndThis);
 
+                    if(thisLocal == null)
+                        thisLocal = (Local) is.getLeftOp();
                 }
 
             }else if(stmt instanceof InvokeStmt) {
@@ -454,13 +479,13 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
                 if(baseInfoStmtMapGbyBase.containsKey(base)){
                     BaseInfoStmtSet =  baseInfoStmtMapGbyBase.get(base);
                 }else {
-                    BaseInfoStmtSet = new BaseInfoStmtSet(method, base, exitStmtList, paramAndThis);
+                    BaseInfoStmtSet = new BaseInfoStmtSet(method, base, entryStmtList ,exitStmtList, paramAndThis);
                     BaseInfoStmtSet.addAll(exitStmtList);
                     BaseInfoStmtSet.addAll(entryStmtList);
                     baseInfoStmtMapGbyBase.put(base, BaseInfoStmtSet);
                 }
                 BaseInfoStmtSet.add(
-                        BaseInfoStmtFactory.v().createBaseInfo(base,
+                        BaseInfoStmtFactory.v().createBaseInfo(true, base,
                                 leftField, rightFields, argsFields, bb, innerBBIdx, stmt));
             }
 
@@ -510,7 +535,7 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
             ArrayRef ref = (ArrayRef) value;
             base = (Local) ref.getBase();
             Value rightIndex = ref.getIndex();
-        } if(value instanceof LengthExpr) {
+        }else if(value instanceof LengthExpr) {
             LengthExpr lengthExpr = (LengthExpr) value;
             base = lengthExpr.getOp();
         } else if (value instanceof NewArrayExpr) {
@@ -520,8 +545,6 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
 
         return new Pair<>(base, field);
     }
-
-
 
 
 

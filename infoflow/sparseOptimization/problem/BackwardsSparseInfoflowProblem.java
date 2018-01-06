@@ -84,6 +84,20 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 				return abs;
 			}
 
+			private Abstraction findBackwardsNormalAbs(Unit stmt , Abstraction input) {
+
+				DataFlowNode dfg = DataFlowGraphQuery.v().useValueTofindBackwardDataFlowGraph(input.getAccessPath().getPlainValue(), stmt);
+
+				if(dfg == null) {
+					return null;
+					//System.out.println(manager.getICFG().getMethodOf(stmt).getActiveBody());
+					//throw new RuntimeException("backcallfunc abs should have a use stmt set");
+
+				}
+
+				return dfg.deriveNewAbsbyAbs(input);
+			}
+
 			/**
 			 * Computes the aliases for the given statement
 			 * @param defStmt The definition statement from which to extract
@@ -251,7 +265,7 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 						
 						if (!newLeftAbs.getAccessPath().equals(source.getAccessPath())) {
 
-							// a = b;
+							// b = a;
 							// a.f = xxx;
 
 							Abstraction d3 = getAbsFromBackwardDfg(leftValue, defStmt, newLeftAbs);
@@ -383,6 +397,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 								res.add(d3);
 								//res.add(newAbs);
 
+								// a = b;
+								// a.f = xxx;
+
 								Set<Unit> nextSet = getNextStmtFromForwardDfgback(rightValue, defStmt, newAbs);
 								for (Unit u : nextSet)
 									manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, u, newAbs), defStmt);
@@ -400,11 +417,13 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 
 			private Abstraction getAbsFromBackwardDfg(Value value , Unit stmt, Abstraction abs) {
 				DataFlowNode dataFlowNode = DataFlowGraphQuery.v().useValueTofindBackwardDataFlowGraph(value, stmt);
-				//错误！！！
-				if(dataFlowNode == null)
-					return abs;
-				if(dataFlowNode == null)
+//				//错误！！！
+//				if(dataFlowNode == null)
+//					return abs;
+				if(dataFlowNode == null) {
+					System.out.println(manager.getICFG().getMethodOf(stmt).getActiveBody());
 					throw new RuntimeException("backwarddfg abs should have a use stmt set");
+				}
 				return dataFlowNode.deriveNewAbsbyAbs(abs);
 			}
 
@@ -459,6 +478,26 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 			
 			@Override
 			public FlowFunction<Abstraction> getNormalFlowFunction(final Unit src, final Unit dest) {
+
+				if(interproceduralCFG().isStartPoint(src)) {
+					return new SolverNormalFlowFunction() {
+
+						@Override
+						public Set<Abstraction> computeTargets(Abstraction d1, Abstraction source) {
+							Set<Abstraction> res = new HashSet<>();
+							Abstraction ret = findBackwardsNormalAbs(src, source);
+
+							// 多个return时候， ret a; ret null
+
+							if(ret != null)
+							res.add(ret);
+
+							return notifyOutFlowHandlers(src, d1, source, res,
+									FlowFunctionType.NormalFlowFunction);
+						}
+
+					};
+				}
 				
 
 				if (src instanceof DefinitionStmt) {
@@ -483,6 +522,8 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 								taintPropagationHandler.notifyFlowIn(src, source, interproceduralCFG(),
 										FlowFunctionType.NormalFlowFunction);
 							long b1 = System.nanoTime();
+
+
 							Set<Abstraction> res = computeAliases(defStmt, leftValue, d1, source);
 							countNormal1 += System.nanoTime() - b1;
 							long b2 = System.nanoTime();
@@ -510,9 +551,12 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 						? stmt.getInvokeExpr() : null;
 				final boolean isReflectiveCallSite = interproceduralCFG().isReflectiveCallSite(ie);
 
-				final Value[] paramLocals = new Value[dest.getParameterCount()]; 
-				for (int i = 0; i < dest.getParameterCount(); i++)
-					paramLocals[i] = dest.getActiveBody().getParameterLocal(i);
+				final Local[] paramLocals = DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap().
+						get(dest).getParameterLocals().toArray(new Local[0]);
+
+//				final Value[] paramLocals = new Value[dest.getParameterCount()];
+//				for (int i = 0; i < dest.getParameterCount(); i++)
+//					paramLocals[i] = dest.getActiveBody().getParameterLocal(i);
 				
 				final boolean isSource = manager.getSourceSinkManager() != null
 						? manager.getSourceSinkManager().getSourceInfo((Stmt) src, manager) != null : false;
@@ -521,7 +565,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 				
 				// This is not cached by Soot, so accesses are more expensive
 				// than one might think
-				final Local thisLocal = dest.isStatic() ? null : dest.getActiveBody().getThisLocal();	
+				final Local thisLocal = dest.isStatic() ? null : DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap()
+						.get(dest).getThisLocal();
+				//final Local thisLocal = dest.isStatic() ? null : dest.getActiveBody().getThisLocal();
 				
 				// Android executor methods are handled specially. getSubSignature()
 				// is slow, so we try to avoid it whenever we can
@@ -592,7 +638,8 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 														(source.getAccessPath(), rStmt.getOp(), null, false);
 												Abstraction abs = checkAbstraction(source.deriveNewAbstraction(ap, (Stmt) src));
 												if (abs != null) {
-													 res.add(useValueTofindCallInfo(rStmt.getOp(), rStmt, abs));
+													res.add(abs);
+													 //res.add(useValueTofindCallInfo(rStmt.getOp(), rStmt, abs));
 												}
 													//res.add(abs);
 											}
@@ -637,9 +684,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 											source.getAccessPath(), thisLocal);
 									Abstraction abs = checkAbstraction(source.deriveNewAbstraction(ap, (Stmt) src));
 									if (abs != null) {
-										for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
-											res.add(useValueTofindCallInfo(thisLocal, sp, abs));
-										}
+										res.add(abs);
+//										for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
+//											res.add(useValueTofindCallInfo(thisLocal, sp, abs));
+//										}
 									}
 										//res.add(abs);
 								}
@@ -653,9 +701,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 										source.getAccessPath(), thisLocal);
 								Abstraction abs = checkAbstraction(source.deriveNewAbstraction(ap, stmt));
 								if (abs != null) {
-									for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
-										res.add(useValueTofindCallInfo(thisLocal, sp, abs));
-									}
+									res.add(abs);
+//									for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
+//										res.add(useValueTofindCallInfo(thisLocal, sp, abs));
+//									}
 								}
 									//res.add(abs);
 							}
@@ -674,9 +723,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 													source.getAccessPath(), paramLocals[j], null, false);
 											Abstraction abs = checkAbstraction(source.deriveNewAbstraction(ap, stmt));
 											if (abs != null) {
-												for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
-													res.add(useValueTofindCallInfo(paramLocals[j], sp, abs));
-												}
+												res.add(abs);
+//												for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
+//													res.add(useValueTofindCallInfo(paramLocals[j], sp, abs));
+//												}
 											}
 												//res.add(abs);
 										}
@@ -687,9 +737,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 												source.getAccessPath(), paramLocals[i]);
 										Abstraction abs = checkAbstraction(source.deriveNewAbstraction(ap, stmt));
 										if (abs != null) {
-											for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
-												res.add(useValueTofindCallInfo(paramLocals[i], sp, abs));
-											}
+											res.add(abs);
+//											for(Unit sp : manager.getICFG().getStartPointsOf(dest)) {
+//												res.add(useValueTofindCallInfo(paramLocals[i], sp, abs));
+//											}
 
 										}
 									}
@@ -753,7 +804,7 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 						if (source == getZeroValue())
 							return Collections.emptySet();
 						assert source.isAbstractionActive() || manager.getConfig().getFlowSensitiveAliasing();
-						
+
 						// If we have no caller, we have nowhere to propagate. This
 						// can happen when leaving the main method.
 						if (callSite == null)

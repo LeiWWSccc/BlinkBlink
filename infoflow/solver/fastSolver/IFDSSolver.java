@@ -22,8 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import soot.SootMethod;
 import soot.Unit;
-import soot.jimple.GotoStmt;
-import soot.jimple.IfStmt;
 import soot.jimple.infoflow.collect.ConcurrentHashSet;
 import soot.jimple.infoflow.collect.MyConcurrentHashMap;
 import soot.jimple.infoflow.memory.IMemoryBoundedSolver;
@@ -31,8 +29,6 @@ import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
 import soot.jimple.infoflow.solver.executors.SetPoolExecutor;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.InnerBBFastBuildDFGSolver;
-import soot.jimple.internal.AbstractOpStmt;
-import soot.jimple.internal.AbstractSwitchStmt;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 import java.util.*;
@@ -279,18 +275,20 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			Collection<N> startPointsOf = icfg.getStartPointsOf(sCalledProcN);
 			//for each result node of the call-flow function
 			for(D d3: res) {
-//				if (memoryManager != null)
-//					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
+				if (memoryManager != null)
+					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
 				if (d3 == null)
 					continue;
 				
 				//for each callee's start point(s)
-//				for(N sP: startPointsOf) {
-//					//create initial self-loop
-//				}
-				if(d3.getUseStmts() == null)
-					throw new RuntimeException("call abs should have a use stmt set");
-				propagateWapper(null, d3, null, d3, n, false, true); //line 15
+				for(N sP: startPointsOf) {
+					//create initial self-loop
+					propagate(null, d3, sP, d3, n, false, true); //line 15
+				}
+
+//				if(d3.getUseStmts() == null)
+//					throw new RuntimeException("call abs should have a use stmt set");
+//				propagateWapper(null, d3, null, d3, n, false, true); //line 15
 
 
 				//register the fact that <sp,d3> has an incoming edge from <n,d2>
@@ -315,8 +313,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 							FlowFunction<D> retFunction = flowFunctions.getReturnFlowFunction(n, sCalledProcN, eP, retSiteN);
 							//for each target value of the function
 							for(D d5: computeReturnFlowFunction(retFunction, d3, d4, n, Collections.singleton(d1))) {
-//								if (memoryManager != null)
-//									d5 = memoryManager.handleGeneratedMemoryObject(d4, d5);
+								if (memoryManager != null)
+									d5 = memoryManager.handleGeneratedMemoryObject(d4, d5);
 //
 								// If we have not changed anything in the callee, we do not need the facts
 								// from there. Even if we change something: If we don't need the concrete
@@ -343,11 +341,13 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		for (N returnSiteN : returnSiteNs) {
 			FlowFunction<D> callToReturnFlowFunction = flowFunctions.getCallToReturnFlowFunction(n, returnSiteN);
 			for(D d3: computeCallToReturnFlowFunction(callToReturnFlowFunction, d1, d2)) {
-//				if (memoryManager != null)
-//					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
+				if (memoryManager != null)
+					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
 				if (d3 != null) {
-//					if(d3.getUseStmts() == null)
-//						throw new RuntimeException("calltoreturn abs should have a use stmt set");
+					if(d3.getUseStmts() == null) {
+						System.out.println(icfg.getMethodOf(returnSiteN).getActiveBody());
+						throw new RuntimeException("calltoreturn abs should have a use stmt set");
+					}
 					propagateWapper(returnSiteN, d1, returnSiteN, d3, n, false);
 				}
 			}
@@ -426,8 +426,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 						final D predVal = d1d2entry.getValue();
 						
 						for(D d5: targets) {
-//							if (memoryManager != null)
-//								d5 = memoryManager.handleGeneratedMemoryObject(d2, d5);
+							if (memoryManager != null)
+								d5 = memoryManager.handleGeneratedMemoryObject(d2, d5);
 							if (d5 == null)
 								continue;
 							
@@ -444,6 +444,9 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 								d5p.setPredecessor(predVal);
 							}
 							if(d5p.getUseStmts() == null)
+								return ;
+
+								if(d5p.getUseStmts() == null)
 								throw new RuntimeException("return abs should have a use stmt set");
 							propagateWapper(retSiteC, d4, retSiteC, d5p, c, false, true);
 						}
@@ -506,9 +509,9 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		final D d1 = edge.factAtSource();
 		final N n = edge.getTarget(); 
 		final D d2 = edge.factAtTarget();
-		if((Unit)n instanceof GotoStmt|| (Unit)n instanceof IfStmt || (Unit)n instanceof AbstractSwitchStmt || (Unit)n instanceof AbstractOpStmt) {
-			return ;
-		}
+//		if((Unit)n instanceof GotoStmt || (Unit)n instanceof IfStmt || (Unit)n instanceof AbstractSwitchStmt) {
+//			return ;
+//		}
 
 		for (N m : icfg.getSuccsOf(n)) {
 			// Early termination check
@@ -519,8 +522,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			FlowFunction<D> flowFunction = flowFunctions.getNormalFlowFunction(n,m);
 			Set<D> res = computeNormalFlowFunction(flowFunction, d1, d2);
 			for (D d3 : res) {
-//				if (memoryManager != null && d2 != d3)
-//					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
+				if (memoryManager != null && d2 != d3)
+					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
 				if (d3 != null) {
 					if(d3.getUseStmts() == null)
 						throw new RuntimeException("normal abs should have a use stmt set");
@@ -556,8 +559,10 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 								   boolean forceRegister) {
 		Set<N> useStmts = targetVal.getUseStmts();
 		targetVal.clearUseStmts();
-		if(useStmts == null)
-			return ;
+		if(useStmts == null) {
+			throw new RuntimeException("Every abs should have a use stmt set");
+		}
+			//return ;
 			//throw new RuntimeException("Every abs should have a use stmt set");
 		//useStmts set size can be null
 		for(N newTarget : useStmts) {
@@ -757,6 +762,9 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			if(st.equals(edge.getTarget().toString()) && edge.factAtTarget().toString().contains("_bannerUrl"))
 				found = true;
 			if(found)
+				aaa++;
+
+			if(edge.getTarget().toString().equals("_this(java.lang.Thread) <java.lang.Thread: java.lang.Runnable target0> <com.intuit.intuitgopayment.swiper.bt.proto.BluetoothSwiperConnector: java.util.TimerTask tt> <com.intuit.intuitgopayment.activities.Charge$GetLastLocation: com.intuit.intuitgopayment.activities.Charge this$0> <com.intuit.intuitgopayment.activities.Charge: double longitude> * <+length> | $r0.<com.intuit.intuitgopayment.activities.Charge: double longitude> = $d0>>"))
 				aaa++;
 
 			long beforeFsolver = System.nanoTime();

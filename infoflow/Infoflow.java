@@ -58,7 +58,6 @@ import soot.jimple.infoflow.source.IOneSourceAtATimeManager;
 import soot.jimple.infoflow.source.ISourceSinkManager;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.DataFlowGraphQuery;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.InnerBBFastBuildDFGSolver;
-import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
 import soot.jimple.infoflow.sparseOptimization.problem.BackwardsSparseInfoflowProblem;
 import soot.jimple.infoflow.sparseOptimization.problem.SparseInfoflowProblem;
 import soot.jimple.infoflow.util.SootMethodRepresentationParser;
@@ -284,14 +283,24 @@ public class Infoflow extends AbstractInfoflow {
 				if(config.getDataFlowSolver() != DataFlowSolver.ContextFlowSensitive)
 					throw new RuntimeException("Sparse optimization just is support for contextFlowSensitive solver!");
 
-				logger.info("Starting Data Flow Graph building!");
+				logger.info("DFGInfo: Starting Data Flow Graph building!");
+				Runtime runtime = Runtime.getRuntime();
+				runtime.gc();
+				logger.info("DFGInfo: before dfg total mem use : " + (getUsedMemory()) / 1E6
+						+ " MB");
+				long mem1 = runtime.totalMemory() - runtime.freeMemory();
 				InnerBBFastBuildDFGSolver dfgSolver = new InnerBBFastBuildDFGSolver(iCfg);
 				long beforeDfgBuild = System.nanoTime();
 				dfgSolver.solve();
-				logger.info("Data Flow Graph building took " + (System.nanoTime() - beforeDfgBuild) / 1E9
+				logger.info("DFGInfo: Data Flow Graph building took " + (System.nanoTime() - beforeDfgBuild) / 1E9
 						+ " seconds");
-				logger.info("Data Flow Graph building memory consumption " + (getUsedMemory()) / 1E6
+				logger.info("DFGInfo: after dfg before gc total use : " + (getUsedMemory()) / 1E6
 						+ " MB");
+				runtime.gc();
+				long mem2 = runtime.totalMemory() - runtime.freeMemory();
+				logger.info("DFGInfo:  dfg  memory consumption after gc : " + (mem2 - mem1) / 1E6
+						+ " MB");
+
 				//DataFlowGraphQuery.initialize(iCfg, dfgSolver.getDfg(), dfgSolver.getBackwardDfg(), dfgSolver.getUnitOrderComputingMap());
 				DataFlowGraphQuery.newInitialize(iCfg, dfgSolver.getNewDfg(), dfgSolver.getNewBackwardDfg(), dfgSolver.getUnitOrderComputingMap());
 
@@ -453,10 +462,10 @@ public class Infoflow extends AbstractInfoflow {
 					logger.info("Taint OPfSolver took " + (System.nanoTime() - beforeFsolver) / 1E9
 							+ " seconds");
 					logger.info("Hash DataFlowGraphQuery took: " + DataFlowGraphQuery.count / 1E9);
-					logger.info("Set usedef took: " + DataFlowNode.count / 1E9);
-					logger.info("Forward Normal took: " + SparseInfoflowProblem.countNormal1 / 1E9);
-					logger.info("Forward Normal2 took: " + SparseInfoflowProblem.countNormal2 / 1E9);
-					logger.info("Forward Normal3 took: " + SparseInfoflowProblem.countNormal3 / 1E9);
+//					logger.info("Set usedef took: " + DataFlowNode.count / 1E9);
+//					logger.info("Forward Normal took: " + SparseInfoflowProblem.countNormal1 / 1E9);
+//					logger.info("Forward Normal2 took: " + SparseInfoflowProblem.countNormal2 / 1E9);
+//					logger.info("Forward Normal3 took: " + SparseInfoflowProblem.countNormal3 / 1E9);
 					logger.info("Backward Normal1 took: " + BackwardsSparseInfoflowProblem.countNormal1 / 1E9);
 					logger.info("Backward Normal2 took: " + BackwardsSparseInfoflowProblem.countNormal2 / 1E9);
 					logger.info("IFDS Normal took: " + IFDSSolver.countNormal / 1E9);
@@ -464,6 +473,10 @@ public class Infoflow extends AbstractInfoflow {
 					logger.info("IFDS Exit took: " + IFDSSolver.countExit / 1E9);
 
 					maxMemoryConsumption = Math.max(maxMemoryConsumption, getUsedMemory());
+					System.out.println("Maximum memory consumption1: " + maxMemoryConsumption / 1E6 + " MB");
+
+					Runtime.getRuntime().gc();
+					logger.info("Memory consumption after gc: " + (getUsedMemory() / 1000 / 1000) + " MB");
 
 					// Not really nice, but sometimes Heros returns before all
 					// executor tasks are actually done. This way, we give it a
@@ -512,7 +525,7 @@ public class Infoflow extends AbstractInfoflow {
 					// results set, the other abstractions can be killed now.
 					maxMemoryConsumption = Math.max(maxMemoryConsumption, getUsedMemory());
 					logger.info("Current memory consumption: " + (getUsedMemory() / 1000 / 1000) + " MB");
-
+					System.out.println("Maximum memory consumption2: " + maxMemoryConsumption / 1E6 + " MB");
 					if (timeoutWatcher != null)
 						timeoutWatcher.stop();
 					memoryWatcher.removeSolver((IMemoryBoundedSolver) forwardSolver);
@@ -640,7 +653,7 @@ public class Infoflow extends AbstractInfoflow {
 				PackManager.v().writeOutput();
 
 			maxMemoryConsumption = Math.max(maxMemoryConsumption, getUsedMemory());
-			System.out.println("Maximum memory consumption: " + maxMemoryConsumption / 1E6 + " MB");
+			System.out.println("Maximum memory consumption final: " + maxMemoryConsumption / 1E6 + " MB");
 		} catch (Exception ex) {
 			results.addException(ex.getClass().getName() + ": " + ex.getMessage());
 		}
@@ -999,6 +1012,7 @@ public class Infoflow extends AbstractInfoflow {
 	 */
 	private int scanMethodForSourcesSinks(final ISourceSinkManager sourcesSinks, AbstractInfoflowProblem forwardProblem,
 			SootMethod m) {
+
 		if (getConfig().getLogSourcesAndSinks() && collectedSources == null) {
 			collectedSources = new HashSet<>();
 			collectedSinks = new HashSet<>();

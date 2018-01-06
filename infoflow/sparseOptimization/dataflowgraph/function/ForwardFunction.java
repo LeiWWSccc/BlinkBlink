@@ -3,6 +3,7 @@ package soot.jimple.infoflow.sparseOptimization.dataflowgraph.function;
 import heros.solver.Pair;
 import soot.SootField;
 import soot.Value;
+import soot.jimple.IdentityStmt;
 import soot.jimple.ReturnStmt;
 import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlockGraph;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.BaseInfoStmt;
@@ -46,6 +47,16 @@ public class ForwardFunction extends AbstractFunction {
 
     public Set<Pair<BaseInfoStmt, DataFlowNode>> flowFunction(BaseInfoStmt target, DataFlowNode source) {
         Set<Pair<BaseInfoStmt, DataFlowNode>> res = new HashSet<>();
+
+
+        if(target.base == null && target.isHead) {
+            addResult(res, target, source);
+            return res;
+        }
+//        if(target.base != null && target.stmt instanceof IdentityStmt) {
+//            addResult(res, target, source);
+//            return res;
+//        }
 
         if(target.base == null) {
             //return
@@ -100,7 +111,8 @@ public class ForwardFunction extends AbstractFunction {
                 if(targetLeftField == baseField || sourceField.equals(targetLeftField)) {
                     //(1.1.1) a = xxx;  source : a.f1  , kill source
                     //(1.1.2) a.f1 = xxx;   source : a.f1 , kill source
-                    isKillSource = true;
+                    if(!(target.stmt instanceof IdentityStmt))
+                        isKillSource = true;
                 }else {
                     //(1.1.3) a.f2 = xx; source : a.f1  , do nothing.
                 }
@@ -166,7 +178,8 @@ public class ForwardFunction extends AbstractFunction {
                 //(2.1) like  a =  xxx; or  a.f1 = xxx; or a.f2 = xxx;
                 if(targetLeftField == baseField ) {
                     // a = xxxx;   source : a , kill source
-                    isKillSource = true;
+                    if(!(target.stmt instanceof IdentityStmt))
+                        isKillSource = true;
                 }else {
                     // a.f1 = xx; source : a ,  just kill field f1.
                     //source.setKillField(targetLeftField);

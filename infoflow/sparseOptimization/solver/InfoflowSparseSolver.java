@@ -108,13 +108,19 @@ public class InfoflowSparseSolver extends IFDSSolver<Unit, Abstraction, BiDiInte
 						// from there. Even if we change something: If we don't need the concrete
 						// path, we can skip the callee in the predecessor chain
 						Abstraction d5p = d5;
-						if (d5.equals(d2))
+						if (d5.equals(d2)) {
 							d5p = d2;
+							d5p.setUseStmts(d5.getUseStmts());
+						}
 						else if (setJumpPredecessors && d5p != d2) {
 							d5p = d5p.clone();
 							d5p.setPredecessor(d2);
 						}
-						propagate(retSiteN, d1, retSiteN, d5p, callSite, false, true);
+						if(d5p.getUseStmts() == null)
+							throw new RuntimeException("return abs should have a use stmt set");
+						//propagateWapper(retSiteC, d4, retSiteC, d5p, c, false, true);
+						// fix bug, inject context
+						propagateWapper(retSiteN, d1, retSiteN, d5p, callSite, false, true);
 					}
 				}
 			}

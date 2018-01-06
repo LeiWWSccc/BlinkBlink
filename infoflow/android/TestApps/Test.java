@@ -10,32 +10,7 @@
  ******************************************************************************/
 package soot.jimple.infoflow.android.TestApps;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import javax.xml.stream.XMLStreamException;
-
 import org.xmlpull.v1.XmlPullParserException;
-
 import soot.SootMethod;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.InfoflowConfiguration.AliasingAlgorithm;
@@ -61,6 +36,16 @@ import soot.jimple.infoflow.taintWrappers.EasyTaintWrapper;
 import soot.jimple.infoflow.taintWrappers.ITaintPropagationWrapper;
 import soot.jimple.infoflow.util.SystemClassHandler;
 import soot.options.Options;
+
+import javax.xml.stream.XMLStreamException;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.*;
 
 public class Test {
 	
@@ -297,6 +282,9 @@ public class Test {
 			}
 			else if (args[i].equalsIgnoreCase("--nostatic")) {
 				config.setEnableStaticFieldTracking(false);
+				i++;
+			}else if (args[i].equalsIgnoreCase("--norecur")) {
+				config.setNoRecur();
 				i++;
 			}
 			else if (args[i].equalsIgnoreCase("--aplength")) {

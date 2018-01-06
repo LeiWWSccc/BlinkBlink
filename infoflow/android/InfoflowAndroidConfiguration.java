@@ -25,12 +25,14 @@ public class InfoflowAndroidConfiguration extends InfoflowConfiguration {
 		 */
 		Fast
 	}
-	
+//	private boolean computeResultPaths = true;
+//
+//	private PathBuilder pathBuilder = PathBuilder.ContextSensitive;
 	private boolean computeResultPaths = false;
 	private PathBuilder pathBuilder = PathBuilder.ContextInsensitiveSourceFinder;
-	
+
 	private boolean enableCallbacks = true;
-	private boolean enableCallbackSources = false;
+	private boolean enableCallbackSources = true;
 	//private boolean enableCallbackSources = true;
 	private boolean enableLifecycleSources = false;
 	private boolean filterThreadCallbacks = true;

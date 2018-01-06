@@ -23,13 +23,15 @@ public class BaseInfoStmtSet {
     Value base;
     SootMethod m ;
 
-    List<BaseInfoStmt> returnStmtList = new ArrayList<>();
+    Set<BaseInfoStmt> startPointStmtList ;
+    Set<BaseInfoStmt> returnStmtList ;
 
     private Set<Value> paramAndThis ;
     Map<DFGEntryKey, Set<DataFlowNode>> returnInfo = null;
-    public BaseInfoStmtSet(SootMethod m, Value base, List<BaseInfoStmt> returnStmtList, Set<Value> paramAndThis ) {
+    public BaseInfoStmtSet(SootMethod m, Value base,Set<BaseInfoStmt> startPointStmtList,  Set<BaseInfoStmt> returnStmtList, Set<Value> paramAndThis ) {
         this.base = base;
         this.m = m;
+        this.startPointStmtList = startPointStmtList;
         this.returnStmtList = returnStmtList;
         this.paramAndThis = paramAndThis;
     }
@@ -37,7 +39,7 @@ public class BaseInfoStmtSet {
     public void add(BaseInfoStmt varInfo) {
         varInfoSets.add(varInfo);
     }
-    public void addAll(List<BaseInfoStmt> varInfo) {
+    public void addAll(Set<BaseInfoStmt> varInfo) {
         varInfoSets.addAll(varInfo);
     }
 
@@ -88,16 +90,23 @@ public class BaseInfoStmtSet {
                         (baseInfo.stmt, baseInfo.base, baseInfo.leftField, true);
                 Pair<BaseInfoStmt, DataFlowNode> path = new Pair<BaseInfoStmt, DataFlowNode>(baseInfo, dataFlowNode);
 
-                seed.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.leftField),path);
-               // seed.add(new Pair<VariableInfo, DataFlowNode>(baseInfo, dataFlowNode));
+                seed.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.leftField), path);
+                // seed.add(new Pair<VariableInfo, DataFlowNode>(baseInfo, dataFlowNode));
 
                 tmpforward.put(path, dataFlowNode);
+
+//                if(!paramAndThis.contains(baseInfo.base) && baseInfo.idx == 0 || !(baseInfo.stmt instanceof IdentityStmt)) {
+//                    seed.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.leftField), path);
+//                    // seed.add(new Pair<VariableInfo, DataFlowNode>(baseInfo, dataFlowNode));
+//
+//                    tmpforward.put(path, dataFlowNode);
+//                }
 
                 DataFlowNode backDataFlowNode = DataFlowNodeFactory.v().createDataFlowNode
                         (baseInfo.stmt, baseInfo.base, baseInfo.leftField, true);
                 Pair<BaseInfoStmt, DataFlowNode> pathb =  new Pair<BaseInfoStmt, DataFlowNode>(baseInfo, backDataFlowNode);
 
-                seedbackward.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.leftField),pathb);
+                seedbackward.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.leftField), pathb);
 
                 tmpbackward.put(pathb , backDataFlowNode);
             }
@@ -115,8 +124,6 @@ public class BaseInfoStmtSet {
                 seedbackward.put(new DFGEntryKey(baseInfo.stmt, baseInfo.base, baseInfo.rightFields[0]), path);
 
                 tmpbackward.put(path, dataFlowNode);
-
-
 
             }
 
@@ -144,6 +151,41 @@ public class BaseInfoStmtSet {
                 }
             }
 
+        }
+
+        for(BaseInfoStmt spStmt : startPointStmtList) {
+//            if(spStmt instanceof IdentityStmt) {
+//                final IdentityStmt is = ((IdentityStmt)spStmt);
+//                if(is.getLeftOp().equals(base) && (is.getRightOp() instanceof ThisRef)) {
+//                    SootField field = DataFlowNode.baseField;
+//
+//                    DataFlowNode dataFlowNode = DataFlowNodeFactory.v().createDataFlowNode
+//                            (spStmt.stmt, is.getLeftOp(), field, true);
+//                    Pair<BaseInfoStmt, DataFlowNode> pathback = new Pair<BaseInfoStmt, DataFlowNode>(spStmt, dataFlowNode);
+//
+//                    seed.put(new DFGEntryKey(spStmt.stmt, is.getLeftOp(), field), pathback);
+//
+//                    tmpforward.put(pathback, dataFlowNode);
+//
+//                 //   continue;
+//                }
+//            }
+
+            for(Value base: paramAndThis) {
+
+                if(!base.equals(this.base))
+                    continue;
+                SootField field = DataFlowNode.baseField;
+
+                DataFlowNode dataFlowNode = DataFlowNodeFactory.v().createDataFlowNode
+                        (spStmt.stmt, base, field, false);
+                Pair<BaseInfoStmt, DataFlowNode> pathback = new Pair<BaseInfoStmt, DataFlowNode>(spStmt, dataFlowNode);
+
+                seed.put(new DFGEntryKey(spStmt.stmt, base, field), pathback);
+
+                tmpforward.put(pathback, dataFlowNode);
+
+            }
         }
 
         //why to add <parm, returnStmt> to the seed?
@@ -203,16 +245,6 @@ public class BaseInfoStmtSet {
                 tmpbackward.put(pathback, dataFlowNodeback);
 
             }
-        }
-        for(Pair<BaseInfoStmt, DataFlowNode> pair : tmpforward.keySet()) {
-            Value a = pair.getO1().base;
-            if(a != null && !a.equals(base))
-                throw  new RuntimeException("base should equal or return stmt!");
-        }
-        for(Pair<BaseInfoStmt, DataFlowNode> pair : tmpbackward.keySet()) {
-            Value a = pair.getO1().base;
-            if(a != null && !a.equals(base))
-                throw  new RuntimeException("base should equal or return stmt!");
         }
 
        // System.out.println("CC4");
