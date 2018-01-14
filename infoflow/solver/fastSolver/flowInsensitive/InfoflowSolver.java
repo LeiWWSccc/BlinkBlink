@@ -190,5 +190,15 @@ public class InfoflowSolver extends FlowInsensitiveSolver<Unit, Abstraction, BiD
 	public AbstractInfoflowProblem getTabulationProblem() {
 		return this.problem;
 	}
+
+	@Override
+	public long getCountUselessPath() {
+		return 0;
+	}
+
+	@Override
+	public long getCountUsePath() {
+		return 0;
+	}
 	
 }

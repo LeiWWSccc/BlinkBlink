@@ -116,6 +116,9 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	
 	private Set<IMemoryBoundedSolverStatusNotification> notificationListeners = new HashSet<>();
 	private boolean killFlag = false;
+
+	protected long countUselessPath = 0;
+	protected long countUsePath = 0;
 	
 	/**
 	 * Creates a solver for the given problem, which caches flow functions and edge functions.
@@ -259,6 +262,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 
 		final D d2 = edge.factAtTarget();
 		assert d2 != null;
+		boolean isused = false;
+
 		Collection<N> returnSiteNs = icfg.getReturnSitesOfCallAt(n);
 		
 		//for each possible callee
@@ -271,6 +276,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			//compute the call-flow function
 			FlowFunction<D> function = flowFunctions.getCallFlowFunction(n, sCalledProcN);
 			Set<D> res = computeCallFlowFunction(function, d1, d2);
+			if(!res.isEmpty())
+				isused = true;
 			
 			Collection<N> startPointsOf = icfg.getStartPointsOf(sCalledProcN);
 			//for each result node of the call-flow function
@@ -340,7 +347,10 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		//process intra-procedural flows along call-to-return flow functions
 		for (N returnSiteN : returnSiteNs) {
 			FlowFunction<D> callToReturnFlowFunction = flowFunctions.getCallToReturnFlowFunction(n, returnSiteN);
-			for(D d3: computeCallToReturnFlowFunction(callToReturnFlowFunction, d1, d2)) {
+			Set<D> res = computeCallToReturnFlowFunction(callToReturnFlowFunction, d1, d2);
+			if(res.size() > 1 || (res.size() == 1 && !res.contains(d2)) || res.size() == 0)
+				isused = true;
+			for(D d3: res) {
 				if (memoryManager != null)
 					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
 				if (d3 != null) {
@@ -352,6 +362,11 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 				}
 			}
 		}
+
+		if(!isused)
+			countUselessPath++;
+		else
+			countUsePath++;
 	}
 	
 	/**
@@ -395,7 +410,9 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		
 		final D d1 = edge.factAtSource();
 		final D d2 = edge.factAtTarget();
-		
+
+		boolean isUsed = false;
+
 		//for each of the method's start points, determine incoming calls
 		
 		//line 21.1 of Naeem/Lhotak/Rodriguez
@@ -421,6 +438,9 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 					FlowFunction<D> retFunction = flowFunctions.getReturnFlowFunction(c, methodThatNeedsSummary,n,retSiteC);
 					Set<D> targets = computeReturnFlowFunction(retFunction, d1, d2, c, callerSideDs);
 					//for each incoming-call value
+					if(!targets.isEmpty())
+						isUsed = true;
+
 					for(Entry<D, D> d1d2entry : entry.getValue().entrySet()) {
 						final D d4 = d1d2entry.getKey();
 						final D predVal = d1d2entry.getValue();
@@ -442,12 +462,16 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 							else if (setJumpPredecessors && d5p != predVal) {
 								d5p = d5p.clone();
 								d5p.setPredecessor(predVal);
+							}else {
+								d5p = d5p.clone();
 							}
-							if(d5p.getUseStmts() == null)
-								return ;
+//							if(d5p.getUseStmts() == null)
+//								return ;
 
-								if(d5p.getUseStmts() == null)
-								throw new RuntimeException("return abs should have a use stmt set");
+								if(d5p.getUseStmts() == null) {
+									System.out.println(icfg.getMethodOf(c).getActiveBody());
+									throw new RuntimeException("return abs should have a use stmt set");
+								}
 							propagateWapper(retSiteC, d4, retSiteC, d5p, c, false, true);
 						}
 					}
@@ -464,6 +488,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 				for(N retSiteC: icfg.getReturnSitesOfCallAt(c)) {					
 					FlowFunction<D> retFunction = flowFunctions.getReturnFlowFunction(c, methodThatNeedsSummary,n,retSiteC);
 					Set<D> targets = computeReturnFlowFunction(retFunction, d1, d2, c, Collections.singleton(zeroValue));
+					if(!targets.isEmpty())
+						isUsed = true;
 					for(D d5: targets) {
 						if (memoryManager != null)
 							d5 = memoryManager.handleGeneratedMemoryObject(d2, d5);
@@ -480,9 +506,16 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			//instead we thus call the return flow function will a null caller
 			if(callers.isEmpty()) {
 				FlowFunction<D> retFunction = flowFunctions.getReturnFlowFunction(null, methodThatNeedsSummary,n,null);
-				retFunction.computeTargets(d2);
+				Set<D> targets = retFunction.computeTargets(d2);
+				if(!targets.isEmpty())
+					isUsed = true;
 			}
 		}
+
+		if(!isUsed)
+			countUselessPath++;
+		else
+			countUsePath++;
 	}
 	
 	/**
@@ -521,6 +554,11 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	    	// Compute the flow function
 			FlowFunction<D> flowFunction = flowFunctions.getNormalFlowFunction(n,m);
 			Set<D> res = computeNormalFlowFunction(flowFunction, d1, d2);
+			if(res.contains(d2) && res.size() == 1)
+				countUselessPath++;
+			else
+				countUsePath++;
+
 			for (D d3 : res) {
 				if (memoryManager != null && d2 != d3)
 					d3 = memoryManager.handleGeneratedMemoryObject(d2, d3);
@@ -761,26 +799,26 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 				}
 			if(st.equals(edge.getTarget().toString()) && edge.factAtTarget().toString().contains("_bannerUrl"))
 				found = true;
+			if(found && edge.getTarget().toString().equals("$r0 := @this: u.aly.s") && edge.factAtTarget().toString().equals("_$r1(u.aly.bn) <u.aly.bn: u.aly.ar c> <u.aly.ar: java.lang.String c> * <+length> | $r0.<u.aly.bn: u.aly.ar c> = $r1>>"))
+				aaa++;
 			if(found)
 				aaa++;
 
-			if(edge.getTarget().toString().equals("_this(java.lang.Thread) <java.lang.Thread: java.lang.Runnable target0> <com.intuit.intuitgopayment.swiper.bt.proto.BluetoothSwiperConnector: java.util.TimerTask tt> <com.intuit.intuitgopayment.activities.Charge$GetLastLocation: com.intuit.intuitgopayment.activities.Charge this$0> <com.intuit.intuitgopayment.activities.Charge: double longitude> * <+length> | $r0.<com.intuit.intuitgopayment.activities.Charge: double longitude> = $d0>>"))
-				aaa++;
-
+			//System.out.println(m.getActiveBody());
 			long beforeFsolver = System.nanoTime();
 			if(icfg.isCallStmt(edge.getTarget())) {
 				processCall(edge);
-				countCall += (System.nanoTime() - beforeFsolver);
+//				countCall += (System.nanoTime() - beforeFsolver);
 			} else {
 				//note that some statements, such as "throw" may be
 				//both an exit statement and a "normal" statement
 				if(icfg.isExitStmt(edge.getTarget())) {
 					processExit(edge);
-					countExit += (System.nanoTime() - beforeFsolver);
+//					countExit += (System.nanoTime() - beforeFsolver);
 				}
 				if(!icfg.getSuccsOf(edge.getTarget()).isEmpty()) {
 					processNormalFlow(edge);
-					countNormal += (System.nanoTime() - beforeFsolver);
+//					countNormal += (System.nanoTime() - beforeFsolver);
 				}
 			}
 
@@ -888,5 +926,15 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	public void addStatusListener(IMemoryBoundedSolverStatusNotification listener) {
 		this.notificationListeners.add(listener);
 	}
-	
+
+
+	public long getCountUselessPath() {
+		return countUselessPath;
+	}
+
+	public long getCountUsePath() {
+		return countUsePath;
+	}
+
+
 }

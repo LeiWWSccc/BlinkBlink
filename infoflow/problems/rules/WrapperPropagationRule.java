@@ -154,7 +154,7 @@ public class WrapperPropagationRule extends AbstractTaintPropagationRule {
 
 					if(dfg == null)
 						throw new RuntimeException("Wapper AccessPath cant find the relative Dfg, it should be built before using! ");
-					res.add(dfg.deriveNewAbsbyAbs(wrapperAbs));
+					res.add(dfg.deriveNewAbsbyAbsSpecial(wrapperAbs));
 				}
 
 				return res;

@@ -16,11 +16,11 @@ import java.util.Set;
 /**
  * @author wanglei
  */
-public class BackwardFunction extends AbstractFunction {
+public class FlowDroidBackwardFunction extends AbstractFunction {
 
-    BackwardFunction(Map<Pair<BaseInfoStmt, DataFlowNode>, DataFlowNode > visited,
-                     Set<Value> parmAndThis,
-                     Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed) {
+    FlowDroidBackwardFunction(Map<Pair<BaseInfoStmt, DataFlowNode>, DataFlowNode > visited,
+                              Set<Value> parmAndThis,
+                              Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed) {
         super(visited, parmAndThis, seed);
     }
 

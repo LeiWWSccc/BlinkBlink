@@ -527,9 +527,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 							Set<Abstraction> res = computeAliases(defStmt, leftValue, d1, source);
 							countNormal1 += System.nanoTime() - b1;
 							long b2 = System.nanoTime();
-							if (destDefStmt != null && interproceduralCFG().isExitStmt(destDefStmt))
-								for (Abstraction abs : res)
-									computeAliases(destDefStmt, destLeftValue, d1, abs);
+//							if (destDefStmt != null && interproceduralCFG().isExitStmt(destDefStmt))
+//								for (Abstraction abs : res)
+//									computeAliases(destDefStmt, destLeftValue, d1, abs);
 
 							countNormal2 += System.nanoTime() - b2;
 							return notifyOutFlowHandlers(src, d1, source, res,
@@ -925,6 +925,17 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 						for (Abstraction abs : res)
 							if (abs != source)
 								abs.setCorrespondingCallSite((Stmt) callSite);
+
+
+
+						if (exitStmt instanceof DefinitionStmt) {
+							final DefinitionStmt destDefStmt = exitStmt instanceof DefinitionStmt
+									? (DefinitionStmt) exitStmt : null;
+							final Value destLeftValue = destDefStmt == null ? null : BaseSelector.selectBase
+									(destDefStmt.getLeftOp(), true);
+
+							computeAliases(destDefStmt, destLeftValue, d1, source);
+						}
 						
 						return notifyOutFlowHandlers(exitStmt, d1, source, res,
 								FlowFunctionType.ReturnFlowFunction);

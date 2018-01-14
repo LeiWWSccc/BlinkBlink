@@ -95,10 +95,10 @@ public class InfoflowConfiguration {
 	}
 	
 	private int accessPathLength = 5;
-	//private boolean useRecursiveAccessPaths = false;
-	private boolean useRecursiveAccessPaths = true;
-	//private boolean useThisChainReduction = false;
-	private boolean useThisChainReduction = true;
+	private boolean useRecursiveAccessPaths = false;
+	//private boolean useRecursiveAccessPaths = true;
+	private boolean useThisChainReduction = false;
+	//private boolean useThisChainReduction = true;
 	private static boolean pathAgnosticResults = true;
 	private static boolean oneResultPerAccessPath = false;
 	private static boolean mergeNeighbors = false;

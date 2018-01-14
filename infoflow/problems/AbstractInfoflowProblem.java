@@ -135,7 +135,7 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 		return false;
 	}
 
-	public boolean isActivatingTaint(SootMethod m, Unit activationUnit, Unit defStmt , Unit curStmt, Abstraction abstraction) {
+	public boolean isActivatingTaint(SootMethod m, Unit activationUnit, Unit defStmt , Unit curStmt, Unit targetCallStmt) {
 		Pair<SootMethod, Unit> key = new Pair<SootMethod, Unit>(m, activationUnit);
 		if(!activationUnitsToUnits.containsKey(key))
 			return false;
@@ -144,8 +144,13 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 		Set<Unit> res = activationUnitsToUnits.get(new Pair<SootMethod, Unit>(m, activationUnit));
 		for(Unit u : res) {
 			if(orderComputing.computeOrder(defStmt, u) &&
-					orderComputing.computeOrder(u, curStmt))
-				return true;
+					orderComputing.computeOrder(u, curStmt)) {
+				if(targetCallStmt != null && u.equals(targetCallStmt)) {
+					//刚好是出口的情况
+					return false;
+				}else
+					return true;
+			}
 
 		}
 		return false;

@@ -66,10 +66,7 @@ public class InnerBBFastBuildDFGSolver {
     //final public static String[] debugFunc = {"main","funcA","funcB","funcC"};
     //final public static String[] debugFunc = {"<com.clixap.sdk.RequestService: void onHandleIntent(android.content.Intent)>"};
     //final public static String[] debugFunc = {"<com.appbrain.a.t: void run()>"};
-    //final public static String[] debugFunc = {"<com.mobclix.android.sdk.FetchRemoteConfig: org.json.JSONArray doInBackground(java.lang.String[])>"};
-    //final public static String[] debugFunc = {"<com.mobclix.android.sdk.Mobclix: void addPref(java.util.Map)>"};
-    //final public static String[] debugFunc = {"<com.omniture.AppMeasurementBase: java.lang.String track(java.util.Hashtable)>"};
-    final public static String[] debugFunc = {"<com.carfax.cvhr.CarfaxApplication: void track(java.lang.String)>"};
+    final public static String[] debugFunc = {"<com.cgbsoft.financial.update.UpdateService: long downloadUpdateFile(java.lang.String,java.io.File)>"};
     //final public static String[] debugFunc = {"foo"};
     //final public static String[] debugFunc = {"<com.appbrain.a.v: void a(com.appbrain.a.v)>"};
     //final public static String[] debugFunc = {"<com.wEditingHDVideo.ads.AdsLoader: void init(java.lang.String,com.wEditingHDVideo.MainNavigationActivity)>"};

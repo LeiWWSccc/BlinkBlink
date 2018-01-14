@@ -302,4 +302,14 @@ public class InfoflowSolver extends PathTrackingIFDSSolver<Unit, Abstraction, So
 		this.notificationListeners.add(listener);
 	}
 
+	@Override
+	public long getCountUselessPath() {
+		return 0;
+	}
+
+	@Override
+	public long getCountUsePath() {
+		return 0;
+	}
+
 }

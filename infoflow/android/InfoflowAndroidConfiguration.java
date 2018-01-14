@@ -32,8 +32,8 @@ public class InfoflowAndroidConfiguration extends InfoflowConfiguration {
 	private PathBuilder pathBuilder = PathBuilder.ContextInsensitiveSourceFinder;
 
 	private boolean enableCallbacks = true;
+	//private boolean enableCallbackSources = false;
 	private boolean enableCallbackSources = true;
-	//private boolean enableCallbackSources = true;
 	private boolean enableLifecycleSources = false;
 	private boolean filterThreadCallbacks = true;
 	private int maxCallbacksPerComponent = 100;
@@ -44,7 +44,8 @@ public class InfoflowAndroidConfiguration extends InfoflowConfiguration {
 	private boolean oneComponentAtATime = false;
 	
 	private LayoutMatchingMode layoutMatchingMode = LayoutMatchingMode.MatchSensitiveOnly;
-	
+	//private LayoutMatchingMode layoutMatchingMode = LayoutMatchingMode.NoMatch;
+
 	private boolean iccEnabled = false;
 	private String iccModel = null;
 	private boolean iccResultsPurify = true;

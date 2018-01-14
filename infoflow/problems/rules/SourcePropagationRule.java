@@ -57,7 +57,7 @@ public class SourcePropagationRule extends AbstractTaintPropagationRule {
 						DataFlowNode dfg = DataFlowGraphQuery.v().useApTofindDataFlowGraph(ap, stmt);
 						if(dfg == null)
 							throw new RuntimeException("Source AccessPath cant find the relative Dfg, it should be built before using! ");
-						res.add(dfg.deriveNewAbsbyAbs(abs));
+						res.add(dfg.deriveNewAbsbyAbsSpecial(abs));
 
 					}else {
 						res.add(abs);

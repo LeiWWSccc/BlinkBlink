@@ -115,6 +115,45 @@ public class DataFlowNode {
         return abs;
     }
 
+    public Abstraction deriveNewAbsbyAbsSpecial(Abstraction abs) {
+        Set<Unit> uses = new HashSet<>();
+        AccessPath ap = abs.getAccessPath();
+        SootField firstField = ap.getFirstField();
+
+
+        if(succs != null) {
+            if(firstField == null) {
+                for(Set<DataFlowNode> nexts : succs.values()) {
+                    for(DataFlowNode n : nexts) {
+                        if(n.getValue() == null || n.getValue() != null && n.getValue().equals(value)) {
+                            uses.add(n.getStmt());
+                        }
+                    }
+                }
+
+            }else {
+                Set<DataFlowNode> next = succs.get(DataFlowNode.baseField);
+                if(next != null)
+                    for(DataFlowNode d : next) {
+                        uses.add((Stmt)d.stmt);
+                    }
+
+                if(firstField != null) {
+                    Set<DataFlowNode> next1 = succs.get(firstField);
+                    if(next1 != null)
+                        for(DataFlowNode d : next1) {
+                            uses.add((Stmt)d.stmt);
+                        }
+                }
+            }
+
+        }
+        abs.setUseStmts(uses);
+//        count += (System.nanoTime() - beforeFsolver);
+
+        return abs;
+    }
+
     public Abstraction deriveNewAbsAllInfo(Abstraction abs) {
         long beforeFsolver = System.nanoTime();
         Set<Unit> uses = new HashSet<>();

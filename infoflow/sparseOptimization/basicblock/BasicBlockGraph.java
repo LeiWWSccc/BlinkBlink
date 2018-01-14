@@ -285,8 +285,8 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
         return bbToReachableBbMap;
 
     }
-    private Set<BaseInfoStmt> getEntryBaseStmtList() {
-        Set<BaseInfoStmt> entryStmtList = new HashSet<>();
+    private List<BaseInfoStmt> getEntryBaseStmtList() {
+        List<BaseInfoStmt> entryStmtList = new ArrayList<>();
         for(BasicBlock bb  : mHeads) {
             if(bb.getPreds().size() != 0)
                 throw new RuntimeException("mHeads computing is wrong");
@@ -300,8 +300,8 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
         return entryStmtList;
     }
 
-    private Set<BaseInfoStmt> getExitBaseStmtList() {
-        Set<BaseInfoStmt> exitStmtList = new HashSet<>();
+    private List<BaseInfoStmt> getExitBaseStmtList() {
+        List<BaseInfoStmt> exitStmtList = new ArrayList<>();
 
         for(BasicBlock bb  : mTails) {
             if(bb.getSuccs().size() != 0)
@@ -350,8 +350,8 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
 
         final PatchingChain<Unit> units = method.getActiveBody().getUnits();
 
-        final Set<BaseInfoStmt> entryStmtList = getEntryBaseStmtList();
-        final Set<BaseInfoStmt> exitStmtList = getExitBaseStmtList();
+        final List<BaseInfoStmt> entryStmtList = getEntryBaseStmtList();
+        final List<BaseInfoStmt> exitStmtList = getExitBaseStmtList();
 
         Set<Value> paramAndThis = new HashSet<>();
 
@@ -534,7 +534,8 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
         }else if (value instanceof ArrayRef) {
             ArrayRef ref = (ArrayRef) value;
             base = (Local) ref.getBase();
-            Value rightIndex = ref.getIndex();
+           // Type type = base.getType();
+           // Value rightIndex = ref.getIndex();
         }else if(value instanceof LengthExpr) {
             LengthExpr lengthExpr = (LengthExpr) value;
             base = lengthExpr.getOp();
@@ -544,6 +545,16 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
         }
 
         return new Pair<>(base, field);
+    }
+
+
+
+    public static boolean isArrayBase(Value value) {
+        if(value.getType() instanceof ArrayType)
+            return true;
+
+        return false;
+
     }
 
 

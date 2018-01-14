@@ -278,7 +278,7 @@ public class Infoflow extends AbstractInfoflow {
 			logger.info("Starting Taint Analysis");
 			IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(config.getCallgraphAlgorithm(),
 					config.getEnableExceptionTracking());
-
+			long mem = 0;
 			if(config.isSparseOptEnabled()) {
 				if(config.getDataFlowSolver() != DataFlowSolver.ContextFlowSensitive)
 					throw new RuntimeException("Sparse optimization just is support for contextFlowSensitive solver!");
@@ -298,6 +298,7 @@ public class Infoflow extends AbstractInfoflow {
 						+ " MB");
 				runtime.gc();
 				long mem2 = runtime.totalMemory() - runtime.freeMemory();
+				mem = mem2;
 				logger.info("DFGInfo:  dfg  memory consumption after gc : " + (mem2 - mem1) / 1E6
 						+ " MB");
 
@@ -477,6 +478,7 @@ public class Infoflow extends AbstractInfoflow {
 
 					Runtime.getRuntime().gc();
 					logger.info("Memory consumption after gc: " + (getUsedMemory() / 1000 / 1000) + " MB");
+					logger.info("Total fsolver memory consumption : " + ((getUsedMemory() - mem) / 1000 / 1000) + " MB");
 
 					// Not really nice, but sometimes Heros returns before all
 					// executor tasks are actually done. This way, we give it a
@@ -514,11 +516,34 @@ public class Infoflow extends AbstractInfoflow {
 					if (nativeCallHandler != null)
 						nativeCallHandler.shutdown();
 
+
 					logger.info(
 							"IFDS problem with {} forward and {} backward edges solved, " + "processing {} results...",
 							forwardSolver.getPropagationCount(), aliasingStrategy.getSolver() == null ? 0
 									: aliasingStrategy.getSolver().getPropagationCount(),
 							res == null ? 0 : res.size());
+
+					long backwardsCount = aliasingStrategy.getSolver() == null ? 0
+							: aliasingStrategy.getSolver().getPropagationCount();
+					long backwardsuseLessCount = aliasingStrategy.getSolver() == null ? 0
+							: aliasingStrategy.getSolver().getCountUselessPath();
+					long total = forwardSolver.getPropagationCount() + backwardsCount;
+					long useless = forwardSolver.getCountUselessPath() + backwardsuseLessCount;
+
+					long backwarduseCount = aliasingStrategy.getSolver() == null ? 0
+							: aliasingStrategy.getSolver().getCountUsePath();
+					long useNum = forwardSolver.getCountUsePath() + backwarduseCount;
+					float percent1 = (float) (useless) / (float) (useless + useNum);
+
+					float percent = (float) (total - useless) / (float) total ;
+					logger.info(
+							"IFDS problem with total: {}  and useless total: {}  edges, useful edge: {} precentage : {}",
+							total, useless , total - useless,  percent);
+					logger.info(
+							"IFDS problem with total: {}  and use total: {}  edges, useless edge: {} precentage1 : {}",
+							useNum + useless, useNum , useless,  percent1);
+					logger.info("IFDS problem useless forward {}  and {} backward edges ",
+							forwardSolver.getCountUselessPath(), backwardsuseLessCount);
 
 					// Force a cleanup. Everything we need is reachable through
 					// the
@@ -769,15 +794,23 @@ public class Infoflow extends AbstractInfoflow {
 			backwardsManager = new InfoflowManager(config, null, new BackwardsInfoflowCFG(iCfg), sourcesSinks,
 					taintWrapper, hierarchy, manager.getAccessPathFactory());
 			backProblem = new BackwardsInfoflowProblem(backwardsManager);
+
 			// We need to create the right data flow solver
 			switch (config.getDataFlowSolver()) {
 			case Heros:
 				backSolver = new soot.jimple.infoflow.solver.heros.InfoflowSolver(backProblem, executor);
 				break;
 			case ContextFlowSensitive:
-				if(config.isSparseOptEnabled())
+				if(config.isSparseOptEnabled()) {
+					BackwardsSparseInfoflowProblem backwardsSparseInfoflowProblem = new BackwardsSparseInfoflowProblem(backwardsManager);
 					backSolver = new soot.jimple.infoflow.sparseOptimization.solver.BackwardsInfoflowSparseSolver(
-							new BackwardsSparseInfoflowProblem(backwardsManager), executor);
+							backwardsSparseInfoflowProblem, executor);
+
+					backwardsSparseInfoflowProblem.setTaintPropagationHandler(backwardsPropagationHandler);
+					backwardsSparseInfoflowProblem.setTaintWrapper(taintWrapper);
+					if (nativeCallHandler != null)
+						backwardsSparseInfoflowProblem.setNativeCallHandler(nativeCallHandler);
+				}
 				else
 					backSolver = new soot.jimple.infoflow.solver.fastSolver.InfoflowSolver(backProblem, executor);
 

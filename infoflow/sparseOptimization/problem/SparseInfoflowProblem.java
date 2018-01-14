@@ -403,7 +403,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 								for(Abstraction resAbs : resAssign) {
 									DataFlowNode dfNode = DataFlowGraphQuery.v().
 											useValueTofindForwardDataFlowGraph(left, stmt);
-									tmpSet.add(dfNode.deriveNewAbsbyAbs(resAbs));
+									tmpSet.add(dfNode.deriveNewAbsbyAbsSpecial(resAbs));
 								}
 
 								if (res != null) {
@@ -421,11 +421,11 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 										useBaseTofindForwardDataFlowGraph(newSource.getAccessPath().getPlainValue(), stmt, false);
 								if(sourceDfn != null) {
 									if (res != null) {
-										res.add(sourceDfn.deriveNewAbsbyAbs(newSource));
+										res.add(sourceDfn.deriveNewAbsbyAbsSpecial(newSource));
 										return res;
 									}
 									else
-										res = Collections.singleton(sourceDfn.deriveNewAbsbyAbs(newSource));
+										res = Collections.singleton(sourceDfn.deriveNewAbsbyAbsSpecial(newSource));
 								}
 							}
 //							countNormal2 += (System.nanoTime() - beforeFsolver2);
@@ -594,7 +594,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 
 				}
 
-				return dfg.deriveNewAbsbyAbs(input);
+				return dfg.deriveNewAbsbyAbsSpecial(input);
 			}
 
 			private Abstraction returnHelper(Value op , Unit stmt , Abstraction input) {
@@ -607,7 +607,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 
 				}
 
-				return dfg.deriveNewAbsbyAbs(input);
+				return dfg.deriveNewAbsbyAbsSpecial(input);
 			}
 
 			@Override
@@ -1067,8 +1067,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 
 							}
 
-							ruleReturnRes.add(dfg.deriveNewAbsbyAbs(abs));
-
+							ruleReturnRes.add(dfg.deriveNewAbsbyAbsSpecial(abs));
 
 
 						}

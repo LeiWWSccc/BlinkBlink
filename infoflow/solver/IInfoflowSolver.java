@@ -96,5 +96,9 @@ public interface IInfoflowSolver {
 	 * per join point, false to record all incoming neighbors
 	 */
 	public void setSingleJoinPointAbstraction(boolean singleJoinPointAbstraction);
-	
+
+	public long getCountUselessPath() ;
+	public long getCountUsePath() ;
+
+
 }

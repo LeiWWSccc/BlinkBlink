@@ -71,13 +71,16 @@ public class InfoflowSparseSolver extends IFDSSolver<Unit, Abstraction, BiDiInte
 	protected PathEdge<Unit, Abstraction> activateEdge(PathEdge<Unit, Abstraction> oldEdge, Unit defStmt) {
 		Abstraction source = oldEdge.factAtTarget();
 		Unit src = oldEdge.getTarget();
-		if (!source.isAbstractionActive() && problem.isActivatingTaint(problem.getManager().getICFG().getMethodOf(src),
-				source.getActivationUnit(), defStmt, src, source)) {
-			Abstraction newSource = source.getActiveCopy();
-			PathEdge<Unit, Abstraction> activeEdge = new PathEdge<>(oldEdge.factAtSource(), oldEdge.getTarget(), newSource);
-			return activeEdge;
+		if (!source.isAbstractionActive()){
+			Unit targetCallStmt = problem.getManager().getICFG().isCallStmt(src)? src: null;
+			//Unit targetCallStmt =  null;
+			if(problem.isActivatingTaint(problem.getManager().getICFG().getMethodOf(src),
+					source.getActivationUnit(), defStmt, src, targetCallStmt)) {
+				Abstraction newSource = source.getActiveCopy();
+				PathEdge<Unit, Abstraction> activeEdge = new PathEdge<>(oldEdge.factAtSource(), oldEdge.getTarget(), newSource);
+				return activeEdge;
+			}
 		}
-		else
 			return oldEdge;
 	}
 
