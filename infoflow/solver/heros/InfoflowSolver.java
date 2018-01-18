@@ -58,7 +58,7 @@ public class InfoflowSolver extends PathTrackingIFDSSolver<Unit, Abstraction, So
 		return executor;
 	}
 
-	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt, Set<Integer> bbStmt){
 		return false;
 	}
 

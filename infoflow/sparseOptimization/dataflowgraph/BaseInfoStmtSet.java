@@ -50,9 +50,9 @@ public class BaseInfoStmtSet {
         //System.out.println("CC1" + m.toString() + base.toString());
         for(BaseInfoStmt varInfo : varInfoSets) {
 
-            int a = 0;
-            if(varInfo.stmt.toString().equals("$i1 = staticinvoke <com.appbrain.c.e: int b(int,com.appbrain.c.c)>(36, $r1)"))
-                a ++;
+//            int a = 0;
+//            if(varInfo.stmt.toString().equals("$i1 = staticinvoke <com.appbrain.c.e: int b(int,com.appbrain.c.c)>(36, $r1)"))
+//                a ++;
 
 
             if(varInfo.base != null && !varInfo.base.equals(base))
@@ -71,6 +71,7 @@ public class BaseInfoStmtSet {
        // System.out.println("CC2");
         BaseInfoStmtCFG baseCFG = new BaseInfoStmtCFG(bbToBaseInfoMap);
         baseCFG.solve();
+        HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> reachableMap = baseCFG.getReachableMap();
         int count = 0;
         //printBaseInfoStmtSet();
 
@@ -249,8 +250,8 @@ public class BaseInfoStmtSet {
         }
 
        // System.out.println("CC4");
-        computeDataFlow(tmpforward, seed,true);
-        computeDataFlow(tmpbackward, seedbackward, false);
+        computeDataFlow(tmpforward, seed,reachableMap,true);
+        computeDataFlow(tmpbackward, seedbackward, reachableMap,false);
        // System.out.println("CC5");
         return new Pair<Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>>(seed, seedbackward);
 
@@ -286,11 +287,13 @@ public class BaseInfoStmtSet {
 //        }
 //    }
 
-    private void computeDataFlow(Map<Pair<BaseInfoStmt, DataFlowNode>,DataFlowNode > pathSet, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed, boolean isForward) {
+    private void computeDataFlow(Map<Pair<BaseInfoStmt, DataFlowNode>,DataFlowNode > pathSet, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed,
+                                 HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> reachableMap, boolean isForward) {
 
         Map<Pair<BaseInfoStmt, DataFlowNode>,DataFlowNode > visited = pathSet;
         Queue<Pair<BaseInfoStmt, DataFlowNode>> worklist = new LinkedList<>();
         worklist.addAll(visited.keySet());
+        AbstractFunction forwardFunction = FunctionFactory.getFunction(isForward, visited, paramAndThis, seed, reachableMap);
         while(!worklist.isEmpty()) {
             Pair<BaseInfoStmt, DataFlowNode> curPath = worklist.poll();
 
@@ -312,8 +315,7 @@ public class BaseInfoStmtSet {
                 if(next.base != null && next.base != base)
                     continue;
 
-                AbstractFunction forwardFunction = FunctionFactory.getFunction(isForward, visited, paramAndThis, seed);
-                Set<Pair<BaseInfoStmt, DataFlowNode>> ret = forwardFunction.flowFunction(next, curNode);
+                Set<Pair<BaseInfoStmt, DataFlowNode>> ret = forwardFunction.flowFunction(next, curBaseInfo,curNode);
 //                if(isForward) {
 //                    this.returnInfo = forwardFunction.getReturnInfo();
 //                }

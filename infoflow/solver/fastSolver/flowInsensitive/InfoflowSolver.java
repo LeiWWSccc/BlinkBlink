@@ -55,7 +55,7 @@ public class InfoflowSolver extends FlowInsensitiveSolver<Unit, Abstraction, BiD
 	}
 
 	@Override
-	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt, Set<Integer> bbSet){
 		return false;
 	}
 

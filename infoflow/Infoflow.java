@@ -60,6 +60,7 @@ import soot.jimple.infoflow.sparseOptimization.dataflowgraph.DataFlowGraphQuery;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.InnerBBFastBuildDFGSolver;
 import soot.jimple.infoflow.sparseOptimization.problem.BackwardsSparseInfoflowProblem;
 import soot.jimple.infoflow.sparseOptimization.problem.SparseInfoflowProblem;
+import soot.jimple.infoflow.sparseOptimization.solver.InfoflowSparseSolver;
 import soot.jimple.infoflow.util.SootMethodRepresentationParser;
 import soot.jimple.infoflow.util.SystemClassHandler;
 import soot.jimple.toolkits.callgraph.ReachableMethods;
@@ -93,6 +94,8 @@ public class Infoflow extends AbstractInfoflow {
 	private Set<Stmt> collectedSinks = null;
 
 	protected SootMethod dummyMainMethod = null;
+
+	public static boolean isFlowDroidSameRule = false;
 
 	/**
 	 * Creates a new instance of the InfoFlow class for analyzing plain Java
@@ -462,6 +465,8 @@ public class Infoflow extends AbstractInfoflow {
 					forwardSolver.solve();
 					logger.info("Taint OPfSolver took " + (System.nanoTime() - beforeFsolver) / 1E9
 							+ " seconds");
+					logger.info("Taint OPfSolver took Sptime:  " + (InfoflowSparseSolver.sptime) / 1E9
+							+ " seconds");
 					logger.info("Hash DataFlowGraphQuery took: " + DataFlowGraphQuery.count / 1E9);
 //					logger.info("Set usedef took: " + DataFlowNode.count / 1E9);
 //					logger.info("Forward Normal took: " + SparseInfoflowProblem.countNormal1 / 1E9);
@@ -680,6 +685,7 @@ public class Infoflow extends AbstractInfoflow {
 			maxMemoryConsumption = Math.max(maxMemoryConsumption, getUsedMemory());
 			System.out.println("Maximum memory consumption final: " + maxMemoryConsumption / 1E6 + " MB");
 		} catch (Exception ex) {
+			ex.printStackTrace(); // add by wanglei
 			results.addException(ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}

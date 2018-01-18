@@ -63,10 +63,10 @@ public class InnerBBFastBuildDFGSolver {
 //        return returnInfo;
 //    }
 
-    //final public static String[] debugFunc = {"main","funcA","funcB","funcC"};
+    final public static String[] debugFunc = {"main","funcA","funcB","funcC"};
     //final public static String[] debugFunc = {"<com.clixap.sdk.RequestService: void onHandleIntent(android.content.Intent)>"};
     //final public static String[] debugFunc = {"<com.appbrain.a.t: void run()>"};
-    final public static String[] debugFunc = {"<com.cgbsoft.financial.update.UpdateService: long downloadUpdateFile(java.lang.String,java.io.File)>"};
+    //final public static String[] debugFunc = {"<com.cgbsoft.financial.update.UpdateService: long downloadUpdateFile(java.lang.String,java.io.File)>"};
     //final public static String[] debugFunc = {"foo"};
     //final public static String[] debugFunc = {"<com.appbrain.a.v: void a(com.appbrain.a.v)>"};
     //final public static String[] debugFunc = {"<com.wEditingHDVideo.ads.AdsLoader: void init(java.lang.String,com.wEditingHDVideo.MainNavigationActivity)>"};
@@ -200,23 +200,23 @@ public class InnerBBFastBuildDFGSolver {
         }
     }
 
-
-    public void printer(SootMethod m, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> baseToVarInfoMap , Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> backBaseToVarInfoMap) {
-        boolean found = false;
-        for(String func : debugFunc) {
-            if(m.toString().contains(func))
-                found = true;
-        }
-        if(!found)
-            return;
-
-        System.out.println("================Forward  ==========================");
-        System.out.print(printInnerMethodBaseInfo(baseToVarInfoMap));
-        System.out.println("================Backward ==========================");
-        System.out.print(printInnerMethodBaseInfo(backBaseToVarInfoMap));
-        System.out.println("===================================================");
-
-    }
+//
+//    public void printer(SootMethod m, Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> baseToVarInfoMap , Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> backBaseToVarInfoMap) {
+//        boolean found = false;
+//        for(String func : debugFunc) {
+//            if(m.toString().contains(func))
+//                found = true;
+//        }
+//        if(!found)
+//            return;
+//
+//        System.out.println("================Forward  ==========================");
+//        System.out.print(printInnerMethodBaseInfo(baseToVarInfoMap));
+//        System.out.println("================Backward ==========================");
+//        System.out.print(printInnerMethodBaseInfo(backBaseToVarInfoMap));
+//        System.out.println("===================================================");
+//
+//    }
 
 //    public String printDfg() {
 //        if(dfg.size() == 0)
@@ -240,65 +240,65 @@ public class InnerBBFastBuildDFGSolver {
 //        return sb.toString();
 //    }
 
-    public String printInnerMethodBaseInfo(Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> baseinfo) {
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("-------------------------------------------------------------\n");
-        for(Map.Entry<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> entry1 : baseinfo.entrySet()) {
-            Value base = entry1.getKey();
-            sb.append("BASE[ " + base.toString() + " ]: \n");
-            Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> l2Dfg = entry1.getValue();
-            sb.append(subprint(l2Dfg));
-            sb.append("\n");
-        }
-        sb.append("-------------------------------------------------------------\n");
-        return sb.toString();
-    }
-
-    private String subprint(Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> l2Dfg) {
-        StringBuilder sb = new StringBuilder();
-        Set<DataFlowNode> visited = new HashSet<>();
-        Queue<DataFlowNode> list = new LinkedList<>();
-        for(Pair<BaseInfoStmt, DataFlowNode> pair : l2Dfg.values() ) {
-            list.offer(pair.getO2());
-            visited.add(pair.getO2());
-        }
-        int count = 1 ;
-        while (!list.isEmpty()) {
-            DataFlowNode cur = list.poll();
-            sb.append("  ("+count +") ");
-            count++;
-            sb.append(cur.toString() + "\n");
-            if(cur.getSuccs() != null) {
-                for(Map.Entry<SootField, Set<DataFlowNode>> entry : cur.getSuccs().entrySet()) {
-                    SootField f = entry.getKey();
-                    String fs ;
-                    if(f == DataFlowNode.baseField)
-                        fs = "NULL";
-                    else
-                        fs = f.toString();
-
-                    sb.append("      " + fs + "  ->  \n");
-                    Set<DataFlowNode> nextSet = entry.getValue();
-                    for(DataFlowNode next : nextSet) {
-                        sb.append("         " + next + "\n");
-                        if(!visited.contains(next)) {
-                            list.offer(next);
-                            visited.add(next);
-                        }
-                    }
-                    sb.append("\n");
-
-                }
-            }
-//            if(cur.getKillFields() != null) {
-//                sb.append("      Kill Sets:\n");
-//                sb.append("        " + cur.getKillFields().toString() + "\n");
-//            }
+//    public String printInnerMethodBaseInfo(Map<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> baseinfo) {
 //
+//        StringBuilder sb = new StringBuilder();
+//        sb.append("-------------------------------------------------------------\n");
+//        for(Map.Entry<Value, Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>>> entry1 : baseinfo.entrySet()) {
+//            Value base = entry1.getKey();
+//            sb.append("BASE[ " + base.toString() + " ]: \n");
+//            Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> l2Dfg = entry1.getValue();
+//            sb.append(subprint(l2Dfg));
 //            sb.append("\n");
-
-        }
-        return sb.toString();
-    }
+//        }
+//        sb.append("-------------------------------------------------------------\n");
+//        return sb.toString();
+//    }
+//
+//    private String subprint(Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> l2Dfg) {
+//        StringBuilder sb = new StringBuilder();
+//        Set<DataFlowNode> visited = new HashSet<>();
+//        Queue<DataFlowNode> list = new LinkedList<>();
+//        for(Pair<BaseInfoStmt, DataFlowNode> pair : l2Dfg.values() ) {
+//            list.offer(pair.getO2());
+//            visited.add(pair.getO2());
+//        }
+//        int count = 1 ;
+//        while (!list.isEmpty()) {
+//            DataFlowNode cur = list.poll();
+//            sb.append("  ("+count +") ");
+//            count++;
+//            sb.append(cur.toString() + "\n");
+//            if(cur.getSuccs() != null) {
+//                for(Map.Entry<SootField, Set<DataFlowNode>> entry : cur.getSuccs().entrySet()) {
+//                    SootField f = entry.getKey();
+//                    String fs ;
+//                    if(f == DataFlowNode.baseField)
+//                        fs = "NULL";
+//                    else
+//                        fs = f.toString();
+//
+//                    sb.append("      " + fs + "  ->  \n");
+//                    Set<DataFlowNode> nextSet = entry.getValue();
+//                    for(DataFlowNode next : nextSet) {
+//                        sb.append("         " + next + "\n");
+//                        if(!visited.contains(next)) {
+//                            list.offer(next);
+//                            visited.add(next);
+//                        }
+//                    }
+//                    sb.append("\n");
+//
+//                }
+//            }
+////            if(cur.getKillFields() != null) {
+////                sb.append("      Kill Sets:\n");
+////                sb.append("        " + cur.getKillFields().toString() + "\n");
+////            }
+////
+////            sb.append("\n");
+//
+//        }
+//        return sb.toString();
+//    }
 }

@@ -599,7 +599,7 @@ public  class BasicBlockGraph implements DirectedGraph<BasicBlock> {
     }
 
     public BasicBlock getBasicBlock(Unit u) {
-        return null;
+        return unitToBBMap.get(u);
     }
 
 

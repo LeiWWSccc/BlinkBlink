@@ -135,10 +135,34 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 		return false;
 	}
 
-	public boolean isActivatingTaint(SootMethod m, Unit activationUnit, Unit defStmt , Unit curStmt, Unit targetCallStmt) {
+	public boolean isActivatingTaintUsingbbSet(SootMethod m, Unit activationUnit, Unit defStmt , Unit curStmt,
+											   Unit targetCallStmt, Set<Integer> bbSet) {
+//		Pair<SootMethod, Unit> key = new Pair<SootMethod, Unit>(m, activationUnit);
+//		if(!activationUnitsToUnits.containsKey(key))
+//			return false;
+//		BasicBlockGraph orderComputing = DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap().get(m);
+//
+//		Set<Unit> res = activationUnitsToUnits.get(new Pair<SootMethod, Unit>(m, activationUnit));
+//		for(Unit u : res) {
+//			if(bbSet.contains(orderComputing.getBasicBlock(u).getIndexInMethod())) {
+//				if(orderComputing.computeOrder(defStmt, u) &&
+//						orderComputing.computeOrder(u, curStmt)) {
+//					if(targetCallStmt != null && u.equals(targetCallStmt)) {
+//						//刚好是出口的情况
+//						return false;
+//					}else
+//						return true;
+//				}
+//
+//			}
+//		}
+		return false;
+	}
+
+	public Unit isActivatingTaint(SootMethod m, Unit activationUnit, Unit defStmt , Unit curStmt, Unit targetCallStmt) {
 		Pair<SootMethod, Unit> key = new Pair<SootMethod, Unit>(m, activationUnit);
 		if(!activationUnitsToUnits.containsKey(key))
-			return false;
+			return null;
 		BasicBlockGraph orderComputing = DataFlowGraphQuery.v().getMethodToBasicBlockGraphMap().get(m);
 
 		Set<Unit> res = activationUnitsToUnits.get(new Pair<SootMethod, Unit>(m, activationUnit));
@@ -147,13 +171,13 @@ public abstract class AbstractInfoflowProblem extends DefaultJimpleIFDSTabulatio
 					orderComputing.computeOrder(u, curStmt)) {
 				if(targetCallStmt != null && u.equals(targetCallStmt)) {
 					//刚好是出口的情况
-					return false;
+					return null;
 				}else
-					return true;
+					return u;
 			}
 
 		}
-		return false;
+		return null;
 	}
 
 	

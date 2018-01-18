@@ -13,6 +13,7 @@ package soot.jimple.infoflow.data;
 
 import com.google.common.collect.Sets;
 import heros.solver.LinkedNode;
+import heros.solver.Pair;
 import soot.SootMethod;
 import soot.Unit;
 import soot.jimple.Stmt;
@@ -20,6 +21,7 @@ import soot.jimple.infoflow.InfoflowConfiguration;
 import soot.jimple.infoflow.collect.AtomicBitSet;
 import soot.jimple.infoflow.solver.cfg.IInfoflowCFG.UnitContainer;
 import soot.jimple.infoflow.solver.fastSolver.FastSolverLinkedNode;
+import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +51,7 @@ public class Abstraction implements Cloneable, FastSolverLinkedNode<Abstraction,
 	
 	private SourceContext sourceContext = null;
 
-	private Set<Unit> useStmts = null;
+	private Set<Pair<DataFlowNode, Set<Integer>>> useStmts = null;
 	
 	/**
 	 * Unit/Stmt which activates the taint when the abstraction passes it
@@ -575,11 +577,11 @@ public class Abstraction implements Cloneable, FastSolverLinkedNode<Abstraction,
 	public void setCallingContext(Abstraction callingContext) {
 	}
 
-	public void setUseStmts(Set<Unit> stmts) {
+	public void setUseStmts(Set<Pair<DataFlowNode, Set<Integer>>> stmts) {
 		this.useStmts = stmts;
 	}
 
-	public Set<Unit> getUseStmts() {
+	public Set<Pair<DataFlowNode, Set<Integer>>> getUseStmts() {
 		return this.useStmts;
 	}
 	public void clearUseStmts() {

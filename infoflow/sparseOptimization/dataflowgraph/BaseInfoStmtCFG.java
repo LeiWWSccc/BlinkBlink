@@ -1,8 +1,8 @@
 package soot.jimple.infoflow.sparseOptimization.dataflowgraph;
 
+import heros.solver.Pair;
 import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlock;
 import soot.toolkits.graph.DirectedGraph;
-import soot.toolkits.scalar.Pair;
 
 import java.util.*;
 
@@ -12,8 +12,17 @@ import java.util.*;
 public class BaseInfoStmtCFG implements DirectedGraph {
     private HashMap<BasicBlock, Set<BaseInfoStmt>> bbToBaseInfoMap = null;
 
+    private HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> reachableMap = new HashMap<>();
+
+
     public BaseInfoStmtCFG(HashMap<BasicBlock, Set<BaseInfoStmt>> bbToBaseInfoMap) {
         this.bbToBaseInfoMap = bbToBaseInfoMap;
+    }
+
+
+
+    public HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> getReachableMap() {
+        return reachableMap;
     }
 
 //    public void solve1(List<BasicBlock> heads) {
@@ -54,14 +63,84 @@ public class BaseInfoStmtCFG implements DirectedGraph {
     public void solve() {
         Map<BasicBlock, Pair<BaseInfoStmt, BaseInfoStmt>> result = new HashMap<>();
         for(BasicBlock bb : bbToBaseInfoMap.keySet()) {
+            //这里是所有的seed
             solverBB(bb, result);
         }
+
+//        for(BasicBlock bb :  bbToBaseInfoMap.keySet()) {
+//            computeReachableBBSet(bb, result);
+//        }
     }
+
+    public void  computeReachableBBSet(BasicBlock curBB,  Map<BasicBlock, Pair<BaseInfoStmt, BaseInfoStmt>> baseinfoResults ) {
+
+        Map<BasicBlock, Set<Integer>> reachableBBSetMap = new HashMap<>();
+
+        Set<Integer> tmp = new HashSet<>();
+        tmp.add(curBB.getIndexInMethod());
+        reachableBBSetMap.put(curBB, tmp);
+
+        subComputeReachableBBSet(curBB, curBB, null , reachableBBSetMap, baseinfoResults);
+
+    }
+
+    public void subComputeReachableBBSet(BasicBlock sourceBB, BasicBlock curBB, BasicBlock preBB, Map<BasicBlock,
+            Set<Integer>> reachableBBSetMap,Map<BasicBlock, Pair<BaseInfoStmt, BaseInfoStmt>> baseinfoResults ) {
+
+        Set<Integer> preSet = null;
+        if(preBB != null) {
+            preSet = reachableBBSetMap.get(preBB);
+        }
+
+        if(curBB != sourceBB && bbToBaseInfoMap.containsKey(curBB) ) {
+            preSet.add(curBB.getIndexInMethod());
+            Pair<BaseInfoStmt, BaseInfoStmt> curRet = baseinfoResults.get(curBB);
+            Pair<BaseInfoStmt, BaseInfoStmt> sourceRet = baseinfoResults.get(sourceBB);
+            Pair<BaseInfoStmt, BaseInfoStmt> key = new Pair<BaseInfoStmt, BaseInfoStmt>(sourceRet.getO2(), curRet.getO1());
+            if(reachableMap.containsKey(key)) {
+                Set<Integer> tmp = reachableMap.get(key);
+                tmp.addAll(preSet);
+            }else {
+                reachableMap.put(key, preSet);
+            }
+            return ;
+        }
+
+        if(preSet != null) {
+
+            Set<Integer> tmp = null;
+            if(reachableBBSetMap.containsKey(curBB)) {
+                tmp = reachableBBSetMap.get(curBB);
+            }else {
+                tmp = new HashSet<>();
+                tmp.add(curBB.getIndexInMethod());
+                reachableBBSetMap.put(curBB, tmp);
+            }
+
+            if(tmp.containsAll(preSet)) {
+                return;
+            }else {
+                tmp.addAll(preSet);
+            }
+        }
+
+        for(BasicBlock nextBB : curBB.getSuccs()) {
+
+            subComputeReachableBBSet(sourceBB, nextBB, curBB, reachableBBSetMap, baseinfoResults);
+        }
+
+    }
+
+
+
     private void solverBB(BasicBlock bb, Map<BasicBlock, Pair<BaseInfoStmt, BaseInfoStmt>> result) {
         Pair<BaseInfoStmt, BaseInfoStmt> ret = null;
+        //ret里面存储的是pre 和tail
+        //计算好的预先存储在result里面,就直接获得
         if(result.containsKey(bb)) {
             ret = result.get(bb);
         }else {
+            //否则的话，就主动的计算一个bb中的baseinfo的pre 和tail
             ret = innerBasicBlock(bb);
             if(ret != null)
                 result.put(bb, ret);

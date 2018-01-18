@@ -19,7 +19,7 @@ public interface IInfoflowSolver {
 	 * already been processed earlier) false
 	 */
 	public boolean processEdge(PathEdge<Unit, Abstraction> edge);
-	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt);
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt, Set<Integer> bbSet);
 
 	/**
 	 * Gets the end summary of the given method for the given incoming

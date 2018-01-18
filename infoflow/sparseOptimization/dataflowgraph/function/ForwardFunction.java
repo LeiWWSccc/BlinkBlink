@@ -4,6 +4,7 @@ import heros.solver.Pair;
 import soot.SootField;
 import soot.Value;
 import soot.jimple.*;
+import soot.jimple.infoflow.Infoflow;
 import soot.jimple.infoflow.sparseOptimization.basicblock.BasicBlockGraph;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.BaseInfoStmt;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DFGEntryKey;
@@ -28,8 +29,8 @@ public class ForwardFunction extends AbstractFunction {
 
     ForwardFunction(Map<Pair<BaseInfoStmt, DataFlowNode>, DataFlowNode > visited,
                     Set<Value> parmAndThis,
-                    Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed) {
-        super(visited, parmAndThis, seed);
+                    Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed,  HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> reachableMap) {
+        super(visited, parmAndThis, seed,   reachableMap);
        // this.backwardSeed = backwardSeed;
     }
 
@@ -44,7 +45,7 @@ public class ForwardFunction extends AbstractFunction {
 
 
 
-    public Set<Pair<BaseInfoStmt, DataFlowNode>> flowFunction(BaseInfoStmt target, DataFlowNode source) {
+    public Set<Pair<BaseInfoStmt, DataFlowNode>> flowFunction(BaseInfoStmt target,BaseInfoStmt src , DataFlowNode source) {
         Set<Pair<BaseInfoStmt, DataFlowNode>> res = new HashSet<>();
 
 
@@ -72,7 +73,8 @@ public class ForwardFunction extends AbstractFunction {
             //if(true){
                 DataFlowNode returnNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, null, false);
                 returnNode = getNewDataFlowNode(target, returnNode);
-                source.setSuccs(DataFlowNode.baseField, returnNode);
+                //source.setSuccs(DataFlowNode.baseField, returnNode);
+                setSuccs(DataFlowNode.baseField, source, returnNode, src, target, true);
             }
 
             //res.add(newNode);
@@ -113,11 +115,29 @@ public class ForwardFunction extends AbstractFunction {
                     //(1.1.1) a = xxx;  source : a.f1  , kill source
                     //(1.1.2) a.f1 = xxx;   source : a.f1 , kill source
                     //if(!(target.stmt instanceof IdentityStmt))
-                    if(!isArrayBase)
+                    if((target.stmt instanceof AssignStmt) &&
+                            ((AssignStmt) target.stmt).getLeftOp() instanceof ArrayRef) {
+                        isKillSource = false;
+                    } else
                         isKillSource = true;
                 }else {
                     //(1.1.3) a.f2 = xx; source : a.f1  , do nothing.
                     //isKillSource = true;
+                    if(Infoflow.isFlowDroidSameRule) {
+                        isKillSource = true;
+
+                        newNode = DataFlowNodeFactory.v().createDataFlowNode
+                                (target.stmt, source.getValue(), baseField, true);
+                        newNode = getNewDataFlowNode(target, newNode);
+                        //source.setSuccs(sourceField, newNode);
+                        setSuccs(sourceField, source, newNode, src, target, true);
+
+                        Pair<BaseInfoStmt, DataFlowNode> path = new Pair<BaseInfoStmt, DataFlowNode>(target, newNode);
+
+                        seed.put(new DFGEntryKey(target.stmt, source.getValue(), source.getField(), false), path);
+                        // seed.add(new Pair<VariableInfo, DataFlowNode>(baseInfo, dataFlowNode));
+                        addResult(res, path);
+                    }
                 }
 
             }
@@ -132,13 +152,16 @@ public class ForwardFunction extends AbstractFunction {
                         //(1.2.1) xxx = a;  source : a.f1 , gen f1 -> <a>
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(sourceField, newNode);
+                        //source.setSuccs(sourceField, newNode);
+                        setSuccs(sourceField, source, newNode, src, target, true);
 
                     }else if (right.equals(sourceField)) {
                         //(1.2.2) xxx = a.f1; source : a.f1  , gen f1 -> <a.f1>
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(sourceField, newNode);
+                        //source.setSuccs(sourceField, newNode);
+                        setSuccs(sourceField, source, newNode, src, target, true);
+
                     }else {
                         //(1.2.3) xxx= a.f2  source : a.f1, do nothing.
 
@@ -157,18 +180,23 @@ public class ForwardFunction extends AbstractFunction {
 
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(sourceField, newNode);
+                        //source.setSuccs(sourceField, newNode);
+                        setSuccs(sourceField, source, newNode, src, target, true);
+
                         isKillSource = true;
 
                     }else if (arg.equals(sourceField)) {
                         //(1.3.2) foo(a.f1); source : a.f1  , gen new a.f1
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(sourceField, newNode);
+                        //source.setSuccs(sourceField, newNode);
+                        setSuccs(sourceField, source, newNode, src, target, true);
+
                         throw new RuntimeException("a.f as a func parameter!");
 
                     }else {
                         //(1.3.3) foo(a.f2); source : a.f1, do nothing.
+                        throw new RuntimeException("a.f as a func parameter!");
 
                     }
                 }
@@ -208,7 +236,8 @@ public class ForwardFunction extends AbstractFunction {
                     newNode = DataFlowNodeFactory.v().createDataFlowNode
                             (target.stmt, source.getValue(), source.getField(), true);
                     newNode = getNewDataFlowNode(target, newNode);
-                    source.setSuccs(sourceField, newNode);
+                    //source.setSuccs(sourceField, newNode);
+                    setSuccs(sourceField, source, newNode, src, target, true);
 
                     Pair<BaseInfoStmt, DataFlowNode> path = new Pair<BaseInfoStmt, DataFlowNode>(target, newNode);
 
@@ -228,13 +257,17 @@ public class ForwardFunction extends AbstractFunction {
                         // xxx = a;    source : a , gen new a
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(sourceField, newNode);
+                        //source.setSuccs(sourceField, newNode);
+                        setSuccs(sourceField, source, newNode, src, target, true);
+
 
                     }else {
                         //(1) xxx = a.f1 ; source : a  , gen new a.f1
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, right, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(right, newNode);
+                        //source.setSuccs(right, newNode);
+                        setSuccs(right, source, newNode, src, target, true);
+
                     }
                 }
             }
@@ -246,15 +279,20 @@ public class ForwardFunction extends AbstractFunction {
                         // foo(a);    source : a , gen "base" -> <a>
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(arg, newNode);
+                        //source.setSuccs(arg, newNode);
+                        setSuccs(arg, source, newNode, src, target, true);
+
                         isKillSource = true;
 
                     }else if (arg.equals(sourceField)) {
                         // foo(a.f1); source : a , gen f1 -> <a.f1>
                         newNode = DataFlowNodeFactory.v().createDataFlowNode(target.stmt, target.base, arg, false);
                         newNode = getNewDataFlowNode(target, newNode);
-                        source.setSuccs(arg, newNode);
+                        //source.setSuccs(arg, newNode);
+                        setSuccs(arg, source, newNode, src, target, true);
+
                         isKillSource = true;
+                        throw new RuntimeException("a.f as a func parameter!");
                     }
                 }
             }

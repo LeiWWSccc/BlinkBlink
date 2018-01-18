@@ -50,11 +50,16 @@ public class CmdSingleJavaTest {
             String libpath = "";
             // process dir path
 
+
+            //iftest
+            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/iftest/testcall0b1c1/";
+
             //pointerBench
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/pointerBench/generaljava/Exception1";
 
 
             //update test
+            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/update/testcallret/";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/update/test1b3c4/";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/update/testcall1b1/";
 
@@ -74,11 +79,12 @@ public class CmdSingleJavaTest {
 
             //aliascalltest:
 
-            String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/testcall2b1c1/";
+            String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/testrecurb2/";
+            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/testexp1b2/";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/test0b1c2/";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/test0b3c3/";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/test0b4c1/";
-            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/test1b1c1/";
+            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliascalltest/test0b1c1/";
             //alias Opt :
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliasOpt/test5/";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliasOpt/testB3/";
@@ -115,7 +121,8 @@ public class CmdSingleJavaTest {
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/singletest/calltest";
 
             //alias test
-            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliastest/test5b1";
+            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliastest/test2b1b8";
+            //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliastest/testarray";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliastest/test2b1b6";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliastest/testthis1";
             //String appPath = "/Users/wanglei/Desktop/MyProgram/MultiTest/src/main/java/aliastest/testmerge";

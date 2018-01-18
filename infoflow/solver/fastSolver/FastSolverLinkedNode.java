@@ -1,6 +1,8 @@
 package soot.jimple.infoflow.solver.fastSolver;
 
 import heros.solver.LinkedNode;
+import heros.solver.Pair;
+import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
 
 import java.util.Set;
 
@@ -37,8 +39,8 @@ public interface FastSolverLinkedNode<D, N> extends LinkedNode<D>, Cloneable {
 	 */
 	public D getActiveCopy();
 
-	public Set<N> getUseStmts() ;
-	public void setUseStmts(Set<N> useStmts) ;
+	public Set<Pair<DataFlowNode, Set<Integer>>> getUseStmts() ;
+	public void setUseStmts(Set<Pair<DataFlowNode, Set<Integer>>> useStmts) ;
 
 	public void clearUseStmts() ;
 	

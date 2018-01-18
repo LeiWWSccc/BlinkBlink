@@ -16,6 +16,8 @@ import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.problems.AbstractInfoflowProblem;
 import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
 
+import java.util.Set;
+
 
 public class BackwardsInfoflowSparseSolver  extends InfoflowSparseSolver {
 	public BackwardsInfoflowSparseSolver(AbstractInfoflowProblem problem, InterruptableExecutor executor) {
@@ -23,11 +25,9 @@ public class BackwardsInfoflowSparseSolver  extends InfoflowSparseSolver {
 	}
 
 
-	protected PathEdge<Unit, Abstraction> activateEdge(PathEdge<Unit, Abstraction> oldEdge, Unit defStmt) {
+	protected PathEdge<Unit, Abstraction> activateEdge(PathEdge<Unit, Abstraction> oldEdge, Unit defStmt, Set<Integer> bbSet) {
 
 		return oldEdge;
 	}
-
-
 
 }

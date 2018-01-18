@@ -1,11 +1,13 @@
 package soot.jimple.infoflow.sparseOptimization.dataflowgraph.function;
 
 import heros.solver.Pair;
+import soot.SootField;
 import soot.Value;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.BaseInfoStmt;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DFGEntryKey;
 import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,16 +23,20 @@ public abstract class AbstractFunction {
 
     final protected Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed ;
 
+    private HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> reachableMap;
+
     AbstractFunction(Map<Pair<BaseInfoStmt, DataFlowNode>, DataFlowNode > visited,
                      Set<Value> parmAndThis,
-                     Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed) {
+                     Map<DFGEntryKey, Pair<BaseInfoStmt, DataFlowNode>> seed,
+                     HashMap<Pair<BaseInfoStmt, BaseInfoStmt>, Set<Integer>> reachableMap) {
         this.jumpFunc = visited;
         this.parmAndThis = parmAndThis;
         this.seed = seed;
+        this.reachableMap = reachableMap;
     }
 
     public abstract Set<Pair<BaseInfoStmt, DataFlowNode>>  flowFunction(
-            BaseInfoStmt target, DataFlowNode source);
+            BaseInfoStmt target,BaseInfoStmt src ,DataFlowNode source);
 
     protected DataFlowNode getNewDataFlowNode(BaseInfoStmt baseInfoStmt, DataFlowNode oldNode) {
         Pair<BaseInfoStmt, DataFlowNode> key = new Pair<>(baseInfoStmt, oldNode);
@@ -38,6 +44,22 @@ public abstract class AbstractFunction {
             return jumpFunc.get(key);
         else
             return oldNode;
+
+    }
+
+    protected void setSuccs(SootField field, DataFlowNode source, DataFlowNode target, BaseInfoStmt src, BaseInfoStmt dest, boolean isforward) {
+        Set<Integer> reachableBBSet = null;
+        Pair<BaseInfoStmt, BaseInfoStmt> key = null;
+        if(isforward) {
+            key = new Pair<>(src, dest);
+        }else {
+            key = new Pair<>(dest, src);
+        }
+        if(reachableMap.containsKey(key)) {
+            reachableBBSet = reachableMap.get(key);
+        }
+
+        source.setSuccs(field, target,reachableBBSet );
 
     }
 

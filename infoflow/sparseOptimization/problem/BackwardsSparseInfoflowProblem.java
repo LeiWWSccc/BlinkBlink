@@ -14,6 +14,7 @@ import heros.FlowFunction;
 import heros.FlowFunctions;
 import heros.flowfunc.Identity;
 import heros.flowfunc.KillAll;
+import heros.solver.Pair;
 import heros.solver.PathEdge;
 import soot.*;
 import soot.jimple.*;
@@ -34,10 +35,7 @@ import soot.jimple.infoflow.taintWrappers.ITaintPropagationWrapper;
 import soot.jimple.infoflow.util.BaseSelector;
 import soot.jimple.infoflow.util.TypeUtils;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * class which contains the flow functions for the backwards solver. This is
@@ -129,6 +127,12 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 				final boolean leftSideMatches = Aliasing.baseMatches(leftValue, source);
 				if (!leftSideMatches){
 					//res.add(source);
+					//if(Aliasing.haveSameBaseButNotSameField(leftValue, source) && !source.dependsOnCutAP()) {
+					if(Aliasing.haveSameBaseButNotSameField(leftValue, source)) {
+						Abstraction d3 = getAbsFromBackwardDfgForOriginal(source.getAccessPath().getPlainValue(), leftValue ,defStmt, source);
+						if(d3 != null)
+							res.add(d3);
+					}
 				}
 				else {
 					// The left side is overwritten completely
@@ -142,9 +146,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 					//
 					// a.f1 = pwd;
 
-					Set<Unit> nextSet = getNextStmtFromForwardDfg(leftValue, defStmt, source);
-					for (Unit u : nextSet)
-						manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, u, source), defStmt);
+
+					Set<Pair<DataFlowNode, Set<Integer>>> nextSet = getNextStmtFromForwardDfg(leftValue, defStmt, source);
+					for (Pair<DataFlowNode, Set<Integer>> pair : nextSet)
+						manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, pair.getO1().getStmt(), source), defStmt, pair.getO2());
 
 //					for (Unit u : interproceduralCFG().getPredsOf(defStmt))
 //						manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, u, source));
@@ -256,6 +261,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 							newLeftAbs = checkAbstraction(source.deriveNewAbstraction(ap, defStmt));
 						}
 					}
+					if(newLeftAbs != null && !Aliasing.myBaseMatches(leftValue, newLeftAbs)) {
+						System.out.println("Error backwards left access path, kill it");
+						newLeftAbs = null;
+					}
 					
 					if (newLeftAbs != null) {
 						// If we ran into a new abstraction that points to a
@@ -275,9 +284,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 							// Propagate the new alias upwards
 							//res.add(newLeftAbs);
 
-							Set<Unit> nextSet = getNextStmtFromForwardDfg(leftValue, defStmt, newLeftAbs);
-							for (Unit u : nextSet)
-								manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, u, newLeftAbs), defStmt);
+							Set<Pair<DataFlowNode, Set<Integer>>> nextSet = getNextStmtFromForwardDfg(leftValue, defStmt, newLeftAbs);
+							for (Pair<DataFlowNode, Set<Integer>> pair : nextSet)
+								manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, pair.getO1().getStmt(), newLeftAbs), defStmt, pair.getO2());
 
 
 //							// Propagate the new alias upwards
@@ -390,6 +399,11 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 							AccessPath ap = manager.getAccessPathFactory().copyWithNewValue(source.getAccessPath(),
 									rightValue, targetType, cutFirstField);
 							Abstraction newAbs = checkAbstraction(source.deriveNewAbstraction(ap, defStmt));
+
+							if(newAbs != null && !Aliasing.myBaseMatches(rightValue, newAbs)) {
+								System.out.println("Error right access path, kill it");
+								newAbs = null;
+							}
 							if (newAbs != null && !newAbs.getAccessPath().equals(source.getAccessPath())) {
 								Abstraction d3 = getAbsFromBackwardDfg(rightValue, defStmt, newAbs);
 								if(d3.getUseStmts() == null)
@@ -400,9 +414,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 								// a = b;
 								// a.f = xxx;
 
-								Set<Unit> nextSet = getNextStmtFromForwardDfgback(rightValue, defStmt, newAbs);
-								for (Unit u : nextSet)
-									manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, u, newAbs), defStmt);
+								Set<Pair<DataFlowNode, Set<Integer>>> nextSet = getNextStmtFromForwardDfgback(rightValue, defStmt, newAbs);
+								for (Pair<DataFlowNode, Set<Integer>> pair : nextSet)
+									manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, pair.getO1().getStmt(), newAbs), defStmt, pair.getO2());
 
 								// Inject the new alias into the forward solver
 //								for (Unit u : interproceduralCFG().getPredsOf(defStmt))
@@ -415,11 +429,20 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 				return res;
 			}
 
+
+			private Abstraction getAbsFromBackwardDfgForOriginal(Value base ,Value leftValue , Unit stmt, Abstraction abs) {
+				DataFlowNode dataFlowNode = DataFlowGraphQuery.v().useValueTofindBackwardDataFlowGraph(base, stmt, false);
+
+				if(dataFlowNode == null) {
+					return null;
+				}
+				return dataFlowNode.deriveNewAbsbyAbsFilterfield(abs, ((InstanceFieldRef) leftValue).getField());
+			}
+
+
+
 			private Abstraction getAbsFromBackwardDfg(Value value , Unit stmt, Abstraction abs) {
 				DataFlowNode dataFlowNode = DataFlowGraphQuery.v().useValueTofindBackwardDataFlowGraph(value, stmt);
-//				//错误！！！
-//				if(dataFlowNode == null)
-//					return abs;
 				if(dataFlowNode == null) {
 					System.out.println(manager.getICFG().getMethodOf(stmt).getActiveBody());
 					throw new RuntimeException("backwarddfg abs should have a use stmt set");
@@ -428,49 +451,100 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 			}
 
 
-			private Set<Unit> getNextStmtFromForwardDfgback(Value value , Unit stmt, Abstraction abs) {
-				Set<Unit> res = new HashSet<>();
+			private Set<Pair<DataFlowNode, Set<Integer>>> getNextStmtFromForwardDfgback(Value value , Unit stmt, Abstraction abs) {
+				Set<Pair<DataFlowNode, Set<Integer>>> res = new HashSet<>();
 				DataFlowNode dataFlowNode = DataFlowGraphQuery.v().useValueTofindForwardDataFlowGraph(value, stmt, true, false);
 				AccessPath ap = abs.getAccessPath();
 				SootField firstField = ap.getFirstField();
-				if(dataFlowNode.getSuccs() != null) {
-					Set<DataFlowNode> next = dataFlowNode.getSuccs().get(DataFlowNode.baseField);
-					if(next != null)
-						for(DataFlowNode d : next) {
-							res.add(d.getStmt());
+				HashMap<SootField, Set<Pair<DataFlowNode, Set<Integer>>>> succs = dataFlowNode.getSuccs();
+				if(succs != null) {
+					if(firstField == null) {
+						for(Set<Pair<DataFlowNode,Set<Integer>>>  nexts : succs.values()) {
+							for(Pair<DataFlowNode,Set<Integer>> pair : nexts) {
+								DataFlowNode n = pair.getO1();
+								if(n.getValue() == null || n.getValue() != null && n.getValue().equals(value)) {
+									res.add(pair);
+								}
+							}
 						}
 
-					if(firstField != null) {
-						Set<DataFlowNode> next1 = dataFlowNode.getSuccs().get(firstField);
-						if(next1 != null)
-							for(DataFlowNode d : next1) {
-								res.add(d.getStmt());
-							}
+					}else {
+						Set<Pair<DataFlowNode,Set<Integer>>> next = succs.get(DataFlowNode.baseField);
+						if(next != null)
+							res.addAll(next);
+//                for(DataFlowNode d : next) {
+//                    uses.add((Stmt)d.stmt);
+//                }
+
+						if(firstField != null) {
+							Set<Pair<DataFlowNode,Set<Integer>>>  next1 = succs.get(firstField);
+							if(next1 != null)
+								res.addAll(next1);
+//                    for(DataFlowNode d : next1) {
+//                        uses.add((Stmt)d.stmt);
+//                    }
+						}
 					}
+
 				}
 				return res;
 			}
 
-			private Set<Unit> getNextStmtFromForwardDfg(Value value , Unit stmt, Abstraction abs) {
-				Set<Unit> res = new HashSet<>();
+			private Set<Pair<DataFlowNode, Set<Integer>>> getNextStmtFromForwardDfg(Value value , Unit stmt, Abstraction abs) {
+				Set<Pair<DataFlowNode, Set<Integer>> > res = new HashSet<>();
 				DataFlowNode dataFlowNode = DataFlowGraphQuery.v().useValueTofindForwardDataFlowGraph(value, stmt);
 				AccessPath ap = abs.getAccessPath();
 				SootField firstField = ap.getFirstField();
-				if(dataFlowNode.getSuccs() != null) {
-					Set<DataFlowNode> next = dataFlowNode.getSuccs().get(DataFlowNode.baseField);
-					if(next != null)
-						for(DataFlowNode d : next) {
-							res.add(d.getStmt());
+
+				HashMap<SootField, Set<Pair<DataFlowNode, Set<Integer>>>> succs = dataFlowNode.getSuccs();
+				if(succs != null) {
+					if(firstField == null) {
+						for(Set<Pair<DataFlowNode,Set<Integer>>>  nexts : succs.values()) {
+							for(Pair<DataFlowNode,Set<Integer>> pair : nexts) {
+								DataFlowNode n = pair.getO1();
+								if(n.getValue() == null || n.getValue() != null && n.getValue().equals(value)) {
+									res.add(pair);
+								}
+							}
 						}
 
-					if(firstField != null) {
-						Set<DataFlowNode> next1 = dataFlowNode.getSuccs().get(firstField);
-						if(next1 != null)
-							for(DataFlowNode d : next1) {
-								res.add(d.getStmt());
-							}
+					}else {
+						Set<Pair<DataFlowNode,Set<Integer>>> next = succs.get(DataFlowNode.baseField);
+						if(next != null)
+							res.addAll(next);
+//                for(DataFlowNode d : next) {
+//                    uses.add((Stmt)d.stmt);
+//                }
+
+						if(firstField != null) {
+							Set<Pair<DataFlowNode,Set<Integer>>>  next1 = succs.get(firstField);
+							if(next1 != null)
+								res.addAll(next1);
+//                    for(DataFlowNode d : next1) {
+//                        uses.add((Stmt)d.stmt);
+//                    }
+						}
 					}
+
 				}
+//
+//				if(dataFlowNode.getSuccs() != null) {
+//					Set<Pair<DataFlowNode, Set<Integer>> > next = dataFlowNode.getSuccs().get(DataFlowNode.baseField);
+//					if(next != null) {
+//						res.addAll(next);
+//					}
+////						for(DataFlowNode d : next) {
+////							res.add(d.getStmt());
+////						}
+//
+//					if(firstField != null) {
+//						Set<Pair<DataFlowNode, Set<Integer>> > next1 = dataFlowNode.getSuccs().get(firstField);
+//						if(next1 != null)
+//							for(DataFlowNode d : next1) {
+//								res.add(d.getStmt());
+//							}
+//					}
+//				}
 				return res;
 			}
 
@@ -523,6 +597,8 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 										FlowFunctionType.NormalFlowFunction);
 							long b1 = System.nanoTime();
 
+							if(!(source.getAccessPath().getBaseType() instanceof ArrayRef) && source.getAccessPath().getFieldCount() < 1)
+								return Collections.emptySet();
 
 							Set<Abstraction> res = computeAliases(defStmt, leftValue, d1, source);
 							countNormal1 += System.nanoTime() - b1;
@@ -580,6 +656,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 						if (source == getZeroValue())
 							return Collections.emptySet();
 						assert source.isAbstractionActive() || manager.getConfig().getFlowSensitiveAliasing();
+
+						if(!(source.getAccessPath().getBaseType() instanceof ArrayRef) && source.getAccessPath().getFieldCount() < 1)
+							return Collections.emptySet();
 						
 						// Notify the handler if we have one
 						if (taintPropagationHandler != null)
@@ -805,6 +884,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 							return Collections.emptySet();
 						assert source.isAbstractionActive() || manager.getConfig().getFlowSensitiveAliasing();
 
+						if(!(source.getAccessPath().getBaseType() instanceof ArrayRef) && source.getAccessPath().getFieldCount() < 1)
+							return Collections.emptySet();
+
 						// If we have no caller, we have nowhere to propagate. This
 						// can happen when leaving the main method.
 						if (callSite == null)
@@ -963,6 +1045,9 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 						if (source == getZeroValue())
 							return Collections.emptySet();
 						assert source.isAbstractionActive() || manager.getConfig().getFlowSensitiveAliasing();
+						if(!(source.getAccessPath().getBaseType() instanceof ArrayRef) && source.getAccessPath().getFieldCount() < 1)
+							return Collections.emptySet();
+
 						
 						// Notify the handler if we have one
 						if (taintPropagationHandler != null)
@@ -980,9 +1065,10 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 											== abs.getAccessPath().getPlainValue()) {
 										// Do not pass on this taint, but trigger the forward analysis
 
-										Set<Unit> nextSet = getNextStmtFromForwardDfg(defStmt.getLeftOp(), defStmt, abs);
-										for (Unit u : nextSet)
-											manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, u, abs), defStmt);
+
+										Set<Pair<DataFlowNode, Set<Integer>>> nextSet = getNextStmtFromForwardDfg(defStmt.getLeftOp(), defStmt, abs);
+										for (Pair<DataFlowNode, Set<Integer>> pair : nextSet)
+											manager.getForwardSolver().processEdge(new PathEdge<Unit, Abstraction>(d1, pair.getO1().getStmt(), abs), defStmt, pair.getO2());
 
 
 //										for (Unit u : interproceduralCFG().getPredsOf(defStmt))
@@ -996,7 +1082,6 @@ public class BackwardsSparseInfoflowProblem extends AbstractInfoflowProblem {
 								for(Abstraction abs : passOnSet) {
 									newPassSet.add(getAbsFromBackwardDfg(abs.getAccessPath().getPlainValue(),
 											defStmt, abs));
-
 								}
 								
 								return notifyOutFlowHandlers(call, d1, source, newPassSet,

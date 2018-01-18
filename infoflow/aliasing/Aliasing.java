@@ -1,28 +1,10 @@
 package soot.jimple.infoflow.aliasing;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-
 import heros.solver.IDESolver;
-import soot.ArrayType;
-import soot.Local;
-import soot.PrimType;
-import soot.RefLikeType;
-import soot.SootField;
-import soot.SootMethod;
-import soot.Type;
-import soot.Value;
-import soot.jimple.ArrayRef;
-import soot.jimple.Constant;
-import soot.jimple.DefinitionStmt;
-import soot.jimple.FieldRef;
-import soot.jimple.InstanceFieldRef;
-import soot.jimple.StaticFieldRef;
-import soot.jimple.Stmt;
+import soot.*;
+import soot.jimple.*;
 import soot.jimple.infoflow.InfoflowManager;
 import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.data.AccessPath;
@@ -31,6 +13,10 @@ import soot.jimple.infoflow.util.TypeUtils;
 import soot.jimple.toolkits.pointer.LocalMustAliasAnalysis;
 import soot.jimple.toolkits.pointer.StrongLocalMustAliasAnalysis;
 import soot.toolkits.graph.UnitGraph;
+
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Helper class for aliasing operations
@@ -260,8 +246,8 @@ public class Aliasing {
 
 	/**
 	 * Gets whether the two values must always point to the same runtime object
-	 * @param field1 The first value
-	 * @param field2 The second value
+	 * @param //field1 The first value
+	 * @param //field2 The second value
 	 * @param position The statement at which to check for an aliasing
 	 * relationship
 	 * @return True if the two values must always point to the same runtime
@@ -369,6 +355,32 @@ public class Aliasing {
 		return false;
 	}
 
+	public static boolean myBaseMatches(final Value baseValue, Abstraction source) {
+		if(baseValue instanceof ArrayRef) {
+			if(((ArrayRef) baseValue).getBase().equals(source.getAccessPath().getPlainValue()))
+				return true;
+		}
+
+		if (baseValue instanceof Local) {
+			if (baseValue.equals(source.getAccessPath().getPlainValue()))
+				return true;
+		}
+		else if (baseValue instanceof InstanceFieldRef) {
+			InstanceFieldRef ifr = (InstanceFieldRef) baseValue;
+			if (ifr.getBase().equals(source.getAccessPath().getPlainValue())
+					&& source.getAccessPath().firstFieldMatches(ifr.getField()))
+				return true;
+		}
+		else if (baseValue instanceof StaticFieldRef) {
+			StaticFieldRef sfr = (StaticFieldRef) baseValue;
+			if (source.getAccessPath().firstFieldMatches(sfr.getField()))
+				return true;
+		}
+		return false;
+	}
+
+
+
 
 	// for a.f1 = xxx ;  a.f2
 	//
@@ -377,12 +389,13 @@ public class Aliasing {
 		if (baseValue instanceof InstanceFieldRef) {
 			InstanceFieldRef ifr = (InstanceFieldRef) baseValue;
 			if (ifr.getBase().equals(source.getAccessPath().getPlainValue())
-					&& !source.getAccessPath().firstFieldMatches(ifr.getField()))
+					  &&!source.getAccessPath().firstFieldMatches(ifr.getField()))
 				return true;
 		}
 		else if (baseValue instanceof StaticFieldRef) {
 			//???
-			return true;
+			//TODO
+			return false;
 		}
 		return false;
 	}

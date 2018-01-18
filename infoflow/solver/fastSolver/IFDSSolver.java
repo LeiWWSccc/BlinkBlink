@@ -28,7 +28,7 @@ import soot.jimple.infoflow.memory.IMemoryBoundedSolver;
 import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
 import soot.jimple.infoflow.solver.executors.SetPoolExecutor;
 import soot.jimple.infoflow.solver.memory.IMemoryManager;
-import soot.jimple.infoflow.sparseOptimization.dataflowgraph.InnerBBFastBuildDFGSolver;
+import soot.jimple.infoflow.sparseOptimization.dataflowgraph.data.DataFlowNode;
 import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 import java.util.*;
@@ -186,7 +186,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		for(Entry<N, Set<D>> seed: initialSeeds.entrySet()) {
 			N startPoint = seed.getKey();
 			for(D val: seed.getValue())
-				propagate(null , zeroValue, startPoint, val, null, false);
+				propagate(null ,null , zeroValue, startPoint, val, null, false);
 			addFunction(new PathEdge<N, D>(zeroValue, startPoint, zeroValue));
 		}
 	}
@@ -290,7 +290,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 				//for each callee's start point(s)
 				for(N sP: startPointsOf) {
 					//create initial self-loop
-					propagate(null, d3, sP, d3, n, false, true); //line 15
+					propagate(null, sP, d3, sP, d3, n, false, true); //line 15
 				}
 
 //				if(d3.getUseStmts() == null)
@@ -337,7 +337,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 								}
 								if(d5p.getUseStmts() == null)
 									throw new RuntimeException("return abs should have a use stmt set");
-								propagateWapper(retSiteN, d1, retSiteN, d5p, n, false, true);
+								propagateWapper(n, d1, retSiteN, d5p, n, false, true);
 							}
 						}
 					}
@@ -358,7 +358,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 						System.out.println(icfg.getMethodOf(returnSiteN).getActiveBody());
 						throw new RuntimeException("calltoreturn abs should have a use stmt set");
 					}
-					propagateWapper(returnSiteN, d1, returnSiteN, d3, n, false);
+					propagateWapper(n, d1, returnSiteN, d3, n, false);
 				}
 			}
 		}
@@ -472,7 +472,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 									System.out.println(icfg.getMethodOf(c).getActiveBody());
 									throw new RuntimeException("return abs should have a use stmt set");
 								}
-							propagateWapper(retSiteC, d4, retSiteC, d5p, c, false, true);
+							propagateWapper(c, d4, retSiteC, d5p, c, false, true);
 						}
 					}
 				}
@@ -496,7 +496,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 						if (d5 != null) {
 							if(d5.getUseStmts() == null)
 								throw new RuntimeException("return abs should have a use stmt set");
-							propagateWapper(retSiteC, zeroValue, retSiteC, d5, c, true, callerMethod == methodThatNeedsSummary);
+							propagateWapper(c, zeroValue, retSiteC, d5, c, true, callerMethod == methodThatNeedsSummary);
 						}
 					}
 				}
@@ -595,7 +595,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			/* deliberately exposed to clients */ N relatedCallSite,
 			/* deliberately exposed to clients */ boolean isUnbalancedReturn,
 								   boolean forceRegister) {
-		Set<N> useStmts = targetVal.getUseStmts();
+		Set<Pair<DataFlowNode,Set<Integer>>> useStmts = targetVal.getUseStmts();
 		targetVal.clearUseStmts();
 		if(useStmts == null) {
 			throw new RuntimeException("Every abs should have a use stmt set");
@@ -603,8 +603,8 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 			//return ;
 			//throw new RuntimeException("Every abs should have a use stmt set");
 		//useStmts set size can be null
-		for(N newTarget : useStmts) {
-			propagate(def, sourceVal, newTarget, targetVal, relatedCallSite, isUnbalancedReturn, forceRegister);
+		for(Pair<DataFlowNode, Set<Integer>> pair : useStmts) {
+			propagate(pair.getO2(), def, sourceVal, (N)pair.getO1().getStmt(), targetVal, relatedCallSite, isUnbalancedReturn, forceRegister);
 		}
 
 	}
@@ -619,10 +619,10 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	 * @param isUnbalancedReturn <code>true</code> if this edge is propagating an unbalanced return
 	 *        (this value is not used within this implementation but may be useful for subclasses of {@link IFDSSolver}) 
 	 */
-	protected void propagate(N def, D sourceVal, N target, D targetVal,
+	protected void propagate(Set<Integer> BBset ,N def, D sourceVal, N target, D targetVal,
 		/* deliberately exposed to clients */ N relatedCallSite,
 		/* deliberately exposed to clients */ boolean isUnbalancedReturn) {
-		propagate(def, sourceVal, target, targetVal, relatedCallSite, isUnbalancedReturn, false);
+		propagate(BBset, def, sourceVal, target, targetVal, relatedCallSite, isUnbalancedReturn, false);
 	}
 
 
@@ -639,7 +639,7 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 	 * 		  This can happen when externally injecting edges that don't come out of this
 	 * 		  solver.
 	 */
-	protected void propagate(N def, D sourceVal, N target, D targetVal,
+	protected void propagate(Set<Integer> bbSet,  N def, D sourceVal, N target, D targetVal,
 			/* deliberately exposed to clients */ N relatedCallSite,
 			/* deliberately exposed to clients */ boolean isUnbalancedReturn,
 			boolean forceRegister) {
@@ -677,12 +677,12 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 					return;
 			}
 
-			PathEdge<N, D> newEdge = activateEdge(edge, def);
+			PathEdge<N, D> newEdge = activateEdge(edge, def, bbSet);
 			scheduleEdgeProcessing(newEdge);
 		}
 	}
 
-	protected PathEdge<N, D> activateEdge(PathEdge<N, D> oldEdge, N def) {
+	protected PathEdge<N, D> activateEdge(PathEdge<N, D> oldEdge, N def, Set<Integer> bbset) {
 		return oldEdge;
 	}
 
@@ -790,19 +790,19 @@ public class IFDSSolver<N,D extends FastSolverLinkedNode<D, N>,I extends BiDiInt
 		}
 
 		public void run() {
-			boolean found = false;
-			SootMethod m = (SootMethod)icfg.getMethodOf(edge.getTarget());
-			for(String func : InnerBBFastBuildDFGSolver.debugFunc)
-				if(m.toString().contains(func)) {
-					found = true;
-					break;
-				}
-			if(st.equals(edge.getTarget().toString()) && edge.factAtTarget().toString().contains("_bannerUrl"))
-				found = true;
-			if(found && edge.getTarget().toString().equals("$r0 := @this: u.aly.s") && edge.factAtTarget().toString().equals("_$r1(u.aly.bn) <u.aly.bn: u.aly.ar c> <u.aly.ar: java.lang.String c> * <+length> | $r0.<u.aly.bn: u.aly.ar c> = $r1>>"))
-				aaa++;
-			if(found)
-				aaa++;
+//			boolean found = false;
+//			SootMethod m = (SootMethod)icfg.getMethodOf(edge.getTarget());
+//			for(String func : InnerBBFastBuildDFGSolver.debugFunc)
+//				if(m.toString().contains(func)) {
+//					found = true;
+//					break;
+//				}
+//			if(st.equals(edge.getTarget().toString()) && edge.factAtTarget().toString().contains("_bannerUrl"))
+//				found = true;
+//			if(found && edge.getTarget().toString().equals("$r0 := @this: u.aly.s") && edge.factAtTarget().toString().equals("_$r1(u.aly.bn) <u.aly.bn: u.aly.ar c> <u.aly.ar: java.lang.String c> * <+length> | $r0.<u.aly.bn: u.aly.ar c> = $r1>>"))
+//				aaa++;
+//			if(found)
+//				aaa++;
 
 			//System.out.println(m.getActiveBody());
 			long beforeFsolver = System.nanoTime();

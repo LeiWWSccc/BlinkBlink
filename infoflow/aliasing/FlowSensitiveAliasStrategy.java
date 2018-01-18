@@ -49,11 +49,11 @@ public class FlowSensitiveAliasStrategy extends AbstractBulkAliasStrategy {
 			}
 			for(Unit predUnit : getNextStmtFromDfg(targetValue, src, bwAbs))
 				bSolver.processEdge(new PathEdge<Unit, Abstraction>(d1,
-						predUnit, bwAbs), null);
+						predUnit, bwAbs), null, null);
 		}else {
 			for (Unit predUnit : manager.getICFG().getPredsOf(src))
 				bSolver.processEdge(new PathEdge<Unit, Abstraction>(d1,
-						predUnit, bwAbs), null);
+						predUnit, bwAbs), null, null);
 		}
 
 	}
@@ -71,17 +71,17 @@ public class FlowSensitiveAliasStrategy extends AbstractBulkAliasStrategy {
 		AccessPath ap = abs.getAccessPath();
 		SootField firstField = ap.getFirstField();
 		if(dataFlowNode != null && dataFlowNode.getSuccs() != null) {
-			Set<DataFlowNode> next = dataFlowNode.getSuccs().get(DataFlowNode.baseField);
+			Set<Pair<DataFlowNode, Set<Integer>>> next = dataFlowNode.getSuccs().get(DataFlowNode.baseField);
 			if(next != null)
-				for(DataFlowNode d : next) {
-					res.add(d.getStmt());
+				for(Pair<DataFlowNode, Set<Integer>> d : next) {
+					res.add(d.getO1().getStmt());
 				}
 
 			if(firstField != null) {
-				Set<DataFlowNode> next1 = dataFlowNode.getSuccs().get(firstField);
+				Set<Pair<DataFlowNode, Set<Integer>>> next1 = dataFlowNode.getSuccs().get(firstField);
 				if(next1 != null)
-					for(DataFlowNode d : next1) {
-						res.add(d.getStmt());
+					for(Pair<DataFlowNode, Set<Integer>>  d : next1) {
+						res.add(d.getO1().getStmt());
 					}
 			}
 		}

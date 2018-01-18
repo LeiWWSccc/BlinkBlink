@@ -129,7 +129,8 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 					Set<Abstraction> taintSet,
 					boolean cutFirstField,
 					SootMethod method,
-					Type targetType) {
+					Type targetType,
+					 ByReferenceBoolean taintLeft) {
 				final Value leftValue = assignStmt.getLeftOp();
 				final Value rightValue = assignStmt.getRightOp();
 				
@@ -180,6 +181,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 				
 				if (newAbs != null) {
 					taintSet.add(newAbs);
+					taintLeft.value = true;
 					if (Aliasing.canHaveAliases(assignStmt, leftValue, newAbs))
 						aliasing.computeAliases(d1, assignStmt, leftValue, taintSet,
 								method, newAbs);
@@ -205,7 +207,8 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 					final AssignStmt assignStmt,
 					final Value[] rightVals,
 					Abstraction d1,
-					final Abstraction newSource) {
+					final Abstraction newSource
+					, ByReferenceBoolean taintLeft) {
 				final Value leftValue = assignStmt.getLeftOp();
 				final Value rightValue = assignStmt.getRightOp();
 				boolean addLeftValue = false;
@@ -344,7 +347,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 				Abstraction targetAB = mappedAP.equals(newSource.getAccessPath())
 						? newSource : newSource.deriveNewAbstraction(mappedAP, null);							
 				addTaintViaStmt(d1, assignStmt, targetAB, res, cutFirstField,
-						interproceduralCFG().getMethodOf(assignStmt), targetType);
+						interproceduralCFG().getMethodOf(assignStmt), targetType, taintLeft);
 				//res.add(newSource);
 				return res;
 			}
@@ -371,6 +374,7 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 						ByReferenceBoolean killAll = new ByReferenceBoolean();
 						Set<Abstraction> res = propagationRules.applyNormalFlowFunction(d1,
 								newSource, stmt, (Stmt) dest, killSource, killAll);
+						/// ???
 						if (killAll.value)
 							return Collections.<Abstraction>emptySet();
 //						countNormal3 += (System.nanoTime() - beforeFsolver3);
@@ -381,9 +385,10 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 							final Value right = assignStmt.getRightOp();
 							final Value[] rightVals = BaseSelector.selectBaseList(right, true);
 
+							ByReferenceBoolean taintleft = new ByReferenceBoolean();
 							// Create the new taints that may be created by this assignment
 							Set<Abstraction> resAssign = createNewTaintOnAssignment(assignStmt,
-									rightVals, d1, newSource);
+									rightVals, d1, newSource, taintleft);
 //							countNormal1 += (System.nanoTime() - beforeFsolver);
 
 							long beforeFsolver2 = System.nanoTime();
@@ -395,15 +400,23 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 //									resAssign.remove(newSource);
 //							}
 
-
 							final Value left = assignStmt.getLeftOp();
 							//如果还剩其他的变量，这说明是通过left传递过来的，所以对left的值查找其use位置
-							if (resAssign != null && !resAssign.isEmpty()) {
+							if (resAssign != null && !resAssign.isEmpty() && taintleft.value == true) {
+								if(resAssign.size() != 1)
+									System.out.println("left generate res size should be 1");
+
 								Set<Abstraction> tmpSet = new HashSet<>();
 								for(Abstraction resAbs : resAssign) {
-									DataFlowNode dfNode = DataFlowGraphQuery.v().
-											useValueTofindForwardDataFlowGraph(left, stmt);
-									tmpSet.add(dfNode.deriveNewAbsbyAbsSpecial(resAbs));
+									if(!aliasing.myBaseMatches(left, resAbs)) {
+										System.out.println("Error access path, kill it");
+									}else {
+										//a.f  = xxx
+										// source is  a.f.*
+										DataFlowNode dfNode = DataFlowGraphQuery.v().
+												useValueTofindForwardDataFlowGraph(left, stmt);
+										tmpSet.add(dfNode.deriveNewAbsbyAbsSpecial(resAbs));
+									}
 								}
 
 								if (res != null) {
@@ -416,16 +429,21 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
 							//对于 （1） a = b;
 							//对于 （2） a.f2 = xxx；
 							//那么对于1的a会被连接到2中，此时的a.f2会被kill掉,除了f2之外还是会被继续传播
-							if(killSource.value == false && Aliasing.haveSameBaseButNotSameField(left, newSource)) {
+							if( left instanceof InstanceFieldRef && killSource.value == false && killAll.value == false
+									&& Aliasing.haveSameBaseButNotSameField(left, newSource)) {
 								DataFlowNode sourceDfn = DataFlowGraphQuery.v().
 										useBaseTofindForwardDataFlowGraph(newSource.getAccessPath().getPlainValue(), stmt, false);
 								if(sourceDfn != null) {
+									Abstraction newAbs = sourceDfn.deriveNewAbsbyAbsFilterfield(newSource, ((InstanceFieldRef) left).getField());
 									if (res != null) {
-										res.add(sourceDfn.deriveNewAbsbyAbsSpecial(newSource));
+										if(res.contains(newAbs))
+											System.out.println("Error assign stmt should not gen twice!!!");
+
+										res.add(newAbs);
 										return res;
 									}
 									else
-										res = Collections.singleton(sourceDfn.deriveNewAbsbyAbsSpecial(newSource));
+										res = Collections.singleton(newAbs);
 								}
 							}
 //							countNormal2 += (System.nanoTime() - beforeFsolver2);
@@ -1317,5 +1335,9 @@ public class SparseInfoflowProblem extends AbstractInfoflowProblem {
     public TaintPropagationResults getResults(){
    		return this.results;
 	}
-        
+
+
+	public Aliasing getAliasing() {
+		return aliasing;
+	}
 }

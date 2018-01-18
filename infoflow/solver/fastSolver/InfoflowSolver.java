@@ -55,13 +55,13 @@ public class InfoflowSolver extends IFDSSolver<Unit, Abstraction, BiDiInterproce
 	}
 
 	@Override
-	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt){
+	public boolean processEdge(PathEdge<Unit, Abstraction> edge, Unit defStmt, Set<Integer> bbSet){
 		return false;
 	}
 
 	@Override
 	public boolean processEdge(PathEdge<Unit, Abstraction> edge){
-		propagate(null, edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
+		propagate(null,null, edge.factAtSource(), edge.getTarget(), edge.factAtTarget(), null, false, true);
 		return true;
 	}
 	
@@ -96,7 +96,7 @@ public class InfoflowSolver extends IFDSSolver<Unit, Abstraction, BiDiInterproce
 							d5p = d5p.clone();
 							d5p.setPredecessor(d2);
 						}
-						propagate(retSiteN, d1, retSiteN, d5p, callSite, false, true);
+						propagate(null, retSiteN, d1, retSiteN, d5p, callSite, false, true);
 					}
 				}
 			}

@@ -38,8 +38,13 @@ public class BaseInfoStmt {
 
     @Override
     public String toString() {
-        if(base == null)
-            return "RETURN STMT : " + stmt;
+        if(base == null) {
+            if(isHead)
+                return "ENTRY STMT : " + stmt;
+            else
+                return "EXIT STMT : " + stmt;
+
+        }
 
         return "STMT{ " + stmt + " }, [Base : " + base + "]";
     }
